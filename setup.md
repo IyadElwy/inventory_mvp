@@ -32,7 +32,10 @@ runs claude
 claude
 ```
 
-3. /speckit.constitution We are building a microservice for inventory management. It should be based on Domain Driven Design principles. The Domain Model uses these Elements Aggregate, External System, Read Model, Command, Event, Policy, User.
+## Work with spec kit
+
+
+3. /speckit.constitution We are building a microservice for inventory management. It should be based on Domain Driven Design principles. The Domain Model uses these Elements Aggregate, External System, Read Model, Command, Event, Policy, User. It should have a modular project strucutre. It should use the latest stable version of Fastapi with python 3.12. For the database use sqlite with sqlalchemy as ORM. Write unit tests using pytest as well as mocks with unittest.mock. In the end, the whole application should run in a docker container, so we will need a Dockerfile. 
 
 ->   
 Constitution Created Successfully
@@ -85,7 +88,7 @@ Constitution Created Successfully
 
 5. Zu detailliert im constitution file: Technisches soll da nicht drin sein. Lass uns lieber eine neue constitution.md file generieren
 
-3. /speckit.constitution We are building a microservice for inventory management. It should be based on Domain Driven Design principles. The Domain Model uses these Elements Aggregate, External System, Read Model, Command, Event, Policy, User.
+6. /speckit.constitution We are building a microservice for inventory management. It should be based on Domain Driven Design principles. The Domain Model uses these Elements Aggregate, External System, Read Model, Command, Event, Policy, User.
 
 ● Perfect! The constitution has been successfully created and all templates have been synchronized. Let me provide you with a summary:
 
@@ -154,3 +157,70 @@ Constitution Created Successfully
   - Update plan-template.md with comprehensive constitution compliance checks
 
   All templates are now synchronized and ready for use with the /speckit.plan and other speckit workflows.
+
+7. /speckit.specify Create a Restapi for this microservice. It should have a modular project strucutre. It should use the latest stable version of Fastapi with python 3.12. For the database use sqlite with sqlalchemy as ORM. Use pydantic models for data modelling. Write unit tests using pytest as well as mocks with unittest.mock. In the end, the whole application should run in a docker container, so we will need a Dockerfile. 
+
+● Feature Specification Created Successfully ✅
+
+  Branch: 001-inventory-rest-api
+  Spec File: /workspaces/inventory_mvp/specs/001-inventory-rest-api/spec.md
+  Checklist: /workspaces/inventory_mvp/specs/001-inventory-rest-api/checklists/requirements.md
+
+  Summary
+
+  I've created a comprehensive feature specification for the Inventory Management REST API that focuses on business requirements and user needs rather than implementation details.
+
+  Key Features Specified
+
+  5 User Stories (prioritized for independent delivery):
+
+  1. P1 - Check Inventory Availability: Query stock levels before orders
+  2. P1 - Reserve Inventory for Orders: Hold stock atomically for pending orders
+  3. P2 - Release Reserved Inventory: Free up cancelled order reservations
+  4. P2 - Adjust Inventory Levels: Manual corrections for stock reconciliation
+  5. P3 - Monitor Low Stock Alerts: Proactive restocking notifications
+
+  Functional Requirements
+
+  - 16 functional requirements covering API endpoints, validation, events, and persistence
+  - All requirements aligned with DDD principles from the constitution
+  - Commands: ReserveInventory, ReleaseInventory, AdjustInventory
+  - Events: InventoryReserved, InventoryReleased, InventoryAdjusted, LowStockDetected
+  - Read Models: InventoryStatus, LowStockList
+
+  Success Criteria (Technology-Agnostic)
+
+  - Response time: <100ms for 95% of requests
+  - Concurrency: Handle 1000 concurrent requests atomically
+  - Throughput: 100 requests/second without degradation
+  - Data persistence: Zero data loss on restart
+  - Error handling: 100% clear error messages
+  - Business invariants: Zero violations enforced
+
+  Validation Results ✅
+
+  All quality checks passed:
+  - ✅ No implementation details in specification
+  - ✅ No [NEEDS CLARIFICATION] markers
+  - ✅ All requirements testable and unambiguous
+  - ✅ Success criteria measurable and technology-agnostic
+  - ✅ Scope clearly bounded with assumptions and out-of-scope items
+  - ✅ User stories independently testable
+
+  What Was Excluded (Correctly)
+
+  The specification intentionally excludes implementation details like:
+  - Python 3.12, FastAPI, SQLite, SQLAlchemy, Pydantic (technical stack)
+  - pytest, unittest.mock (testing tools)
+  - Docker, Dockerfile (deployment)
+  - Modular project structure (code organization)
+
+  These will be documented in the plan.md Technical Context section when you run /speckit.plan.
+
+  Ready for Next Phase
+
+  The specification is ready for:
+  - /speckit.plan - Create implementation plan with technical context (Python, FastAPI, SQLite, Docker, etc.)
+  - /speckit.clarify - Optional if you want to refine requirements further
+
+  The plan phase will incorporate your technical requirements (FastAPI, Python 3.12, SQLite, SQLAlchemy, pytest, Docker) into the Technical Context and Constitution Check sections.
