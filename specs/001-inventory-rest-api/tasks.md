@@ -38,7 +38,7 @@
 - [ ] T012 [P] Create src/application/policies/ directory with __init__.py
 - [ ] T013 Write requirements.txt with FastAPI, SQLAlchemy, Pydantic, pytest, httpx dependencies
 - [ ] T014 Configure pytest.ini with test paths and coverage settings
-
+- [ ] T014a Create .env.example file with DATABASE_PATH, LOG_LEVEL, HOST, PORT environment variables
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
@@ -54,9 +54,11 @@
 - [ ] T019 [P] Implement LocalEventPublisher in src/infrastructure/events/local_publisher.py (in-memory event publisher)
 - [ ] T020 Create SQLAlchemy models in src/infrastructure/database/models.py (InventoryModel with to_domain/from_domain methods, EventLogModel)
 - [ ] T021 Create database session management in src/infrastructure/database/session.py (get_db dependency, engine creation)
+- [ ] T021a Create database initialization script in src/infrastructure/database/init_db.py (create tables using SQLAlchemy metadata.create_all)
+- [ ] T021b Create Alembic configuration for migrations (alembic.ini, alembic/env.py, initial migration)
 - [ ] T022 Create repository interface and implementation in src/infrastructure/database/repository.py (InventoryRepository with get, save, find_low_stock methods using SELECT FOR UPDATE)
 - [ ] T023 Create Pydantic schemas in src/infrastructure/api/schemas.py (all request/response models from contracts/openapi.yaml)
-- [ ] T024 Setup FastAPI app initialization in src/main.py (create app, include routers, CORS middleware, database init)
+- [ ] T024 Setup FastAPI app initialization in src/main.py (create app, include routers, CORS middleware, call init_db on startup event)
 - [ ] T025 Create dependency injection helpers in src/infrastructure/api/dependencies.py (get_repository, get_event_publisher)
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
