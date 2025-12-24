@@ -1,0 +1,11 @@
+{
+    "name": "Python Dev Container",
+    "image": "mcr.microsoft.com/devcontainers/python:3.12-bookworm",
+    // No features needed - Python base has git and Python pre-installed
+    "postCreateCommand": "chmod 700 ~/.ssh && chmod 600 ~/.ssh/* 2>/dev/null || true",
+    "remoteUser": "vscode",
+    // SSH mount for git
+    "mounts": [
+        "source=${env:HOME}${env:USERPROFILE}/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached"
+    ]
+}
