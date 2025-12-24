@@ -31,31 +31,40 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-**Domain-Driven Design Compliance**:
-- [ ] Feature clearly defines aggregates and their consistency boundaries
-- [ ] Commands and events are identified for state changes
-- [ ] Read models are separated from write models where appropriate
-- [ ] External systems identified and isolated
+**I. Domain-Driven Design (DDD) Compliance**:
+- [ ] Aggregates defined with clear consistency boundaries and invariants
+- [ ] Commands represent user intent and validation rules are specified
+- [ ] Events identified as immutable records of state changes
+- [ ] Policies identified that react to events and enforce business rules
+- [ ] Read models separated from write models (CQRS) where appropriate
+- [ ] External systems isolated behind anti-corruption layers
+- [ ] User entity represents actors with authorization context
 
-**Modular Architecture Compliance**:
+**II. Modular Architecture Compliance**:
 - [ ] Module boundaries are clear and independently testable
 - [ ] Dependencies flow inward (infrastructure → application → domain)
-- [ ] Cross-module communication uses explicit interfaces
+- [ ] Domain layer does NOT depend on infrastructure or application layers
+- [ ] Cross-module communication uses explicit interfaces (commands/events/queries)
+- [ ] Cross-module dependencies are justified and documented
 
-**Test-First Development Compliance**:
+**III. Test-First Development Compliance**:
 - [ ] Test strategy defined (unit, integration, contract tests)
-- [ ] Tests will be written BEFORE implementation
-- [ ] Mock strategy for external dependencies documented
+- [ ] Tests will be written BEFORE implementation (Red-Green-Refactor)
+- [ ] Mock/stub strategy for external dependencies documented
+- [ ] Test coverage includes domain logic, service layers, and API contracts
 
-**Technology Standards Compliance**:
-- [ ] Uses Python 3.12 + FastAPI + SQLite + SQLAlchemy
-- [ ] pytest and unittest.mock for testing
-- [ ] Docker containerization planned
+**IV. API Contract Discipline Compliance**:
+- [ ] Request/response schemas explicitly defined and validated
+- [ ] Input validation strategy at system boundaries documented
+- [ ] Error response structures and HTTP status codes defined
+- [ ] API versioning strategy for breaking changes specified
+- [ ] API documentation will be auto-generated from contracts
 
-**API Contract Discipline**:
-- [ ] API contracts defined with Pydantic models
-- [ ] Request/response validation strategy documented
-- [ ] Error handling approach defined
+**V. Simplicity First Compliance**:
+- [ ] Solution is the simplest approach that meets requirements
+- [ ] All abstractions and patterns are justified with concrete benefits
+- [ ] New dependencies are necessary and evaluated for maintenance burden
+- [ ] Any deviations from standards are documented with rationale in Complexity Tracking
 
 ## Project Structure
 
