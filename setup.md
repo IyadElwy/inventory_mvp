@@ -224,3 +224,9 @@ Constitution Created Successfully
   - /speckit.clarify - Optional if you want to refine requirements further
 
   The plan phase will incorporate your technical requirements (FastAPI, Python 3.12, SQLite, SQLAlchemy, pytest, Docker) into the Technical Context and Constitution Check sections.
+
+8. Wir merken, dass die DDD prinzipien immer rausgelassen werden und deshalb wir das requirements.md anpassen mussten. Das spec.md
+
+9. Wir merken dass keine technische anforderungen reingenommen wurden obwohl wir diese spezifiziert haben. Das KI modell erkennt, dass diese hier nicht in dieser Phase gehören und packt diese nicht rein.
+
+10. /speckit.plan The project should have a modular project strucutre. It should use the latest stable version of Fastapi with python 3.12. For the database use sqlite with sqlalchemy as ORM. Use pydantic models for data modelling. Write unit tests using pytest as well as mocks with unittest.mock. In the end, the whole application should run in a docker container, so we will need a Dockerfile. 
