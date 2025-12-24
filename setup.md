@@ -816,3 +816,73 @@ Constitution Created Successfully
   - Tasks T058-T068 (11 tasks)
   - Implements manual inventory adjustments for physical stock counts
   - Handles both increases and decreases with validation
+
+
+/speckit.implement Phase 6
+
+
+● Phase 6: User Story 4 - Adjust Inventory Levels - COMPLETE ✓
+
+  Summary: Successfully implemented manual inventory adjustment functionality following TDD principles.
+
+  Implementation Results
+
+  All 11 tasks completed (T058-T068):
+  - ✅ 5 unit tests for Inventory.adjust() method
+  - ✅ 3 integration tests for adjustment workflows
+  - ✅ 4 contract tests for PUT /v1/inventory/{product_id} endpoint
+  - ✅ Domain method: Inventory.adjust() with validation
+  - ✅ Service method: InventoryService.adjust_inventory() with atomic locking
+  - ✅ API endpoint: PUT /v1/inventory/{product_id} with error handling
+
+  Test Results
+
+  Phase 6 Tests: 12/12 passed
+  - Unit tests: 5/5 passed (src/domain/inventory.py:134-176)
+  - Integration tests: 3/3 passed
+  - Contract tests: 4/4 passed
+
+  Checkpoint Validation: 50/50 tests passed across all core operations
+  - Domain layer coverage: 100%
+  - Service layer coverage: 87%
+  - API layer coverage: 80%
+  - Total coverage: 80%
+
+  Key Features Implemented
+
+  1. Business Logic: Validates new total quantity cannot be less than reserved quantity
+  2. Event Emission: Emits InventoryAdjusted event with old and new quantities
+  3. Concurrency Control: Uses SELECT FOR UPDATE for atomic adjustments
+  4. Error Handling: Proper HTTP status codes (404, 422, 500)
+  5. Audit Trail: Requires reason and adjusted_by parameters
+
+  API Endpoint
+
+  PUT /v1/inventory/{product_id}
+  Request: {"new_quantity": 200, "reason": "Physical count", "adjusted_by": "manager@example.com"}
+  Response: {"success": true, "message": "...", "inventory": {...}}
+
+  Files Modified
+
+  - tests/unit/test_inventory_aggregate.py: Added TestInventoryAdjust class
+  - tests/integration/test_inventory_workflows.py: Added TestAdjustInventoryWorkflow class
+  - tests/contract/test_inventory_api.py: Added TestAdjustInventoryEndpoint class
+  - src/domain/inventory.py: Added adjust() method
+  - src/application/inventory_service.py: Added adjust_inventory() method
+  - src/infrastructure/api/routes.py: Added PUT endpoint
+
+  Progress Status
+
+  Completed: 61/92 tasks (66%)
+  - Phase 1: Setup ✅
+  - Phase 2: Foundational ✅
+  - Phase 3: User Story 1 - Check Inventory ✅
+  - Phase 4: User Story 2 - Reserve Inventory ✅
+  - Phase 5: User Story 3 - Release Inventory ✅
+  - Phase 6: User Story 4 - Adjust Inventory ✅
+
+  Remaining: 31/92 tasks (34%)
+  - Phase 7: User Story 5 - Monitor Low Stock Alerts (12 tasks)
+  - Phase 8: Polish & Cross-Cutting Concerns (12 tasks)
+
+  Checkpoint reached: All core inventory operations (query, reserve, release, adjust) are functional and tested ✓

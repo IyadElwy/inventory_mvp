@@ -9,7 +9,7 @@ from src.infrastructure.database.repository import InventoryRepository
 from src.infrastructure.events.local_publisher import LocalEventPublisher
 from src.domain.inventory import Inventory
 from src.domain.exceptions import InventoryNotFoundError, InsufficientStockError, InvalidQuantityError
-from src.domain.events import InventoryReserved, InventoryReleased
+from src.domain.events import InventoryReserved, InventoryReleased, InventoryAdjusted
 from src.infrastructure.database.session import get_db
 
 
@@ -200,3 +200,74 @@ class TestReleaseInventoryWorkflow:
         assert len(event_publisher.published_events) == 2
         assert isinstance(event_publisher.published_events[0], InventoryReserved)
         assert isinstance(event_publisher.published_events[1], InventoryReleased)
+
+
+class TestAdjustInventoryWorkflow:
+    """T062: Test adjusting inventory via service"""
+
+    def test_adjust_inventory_increase(self, inventory_service, repository, event_publisher):
+        """Adjust inventory upward and verify state + events"""
+        # Arrange: Create inventory
+        inventory = Inventory(
+            product_id="PROD-ADJUST-001",
+            total_quantity=100,
+            reserved_quantity=20,
+            minimum_stock_level=10
+        )
+        repository.save(inventory)
+
+        # Act: Adjust inventory via service
+        result = inventory_service.adjust_inventory(
+            "PROD-ADJUST-001", 150, "Physical count increase", "manager@example.com"
+        )
+
+        # Assert: Inventory state updated correctly
+        assert result.total_quantity == 150
+        assert result.reserved_quantity == 20
+        assert result.available_quantity == 130
+
+        # Assert: Event was published
+        assert len(event_publisher.published_events) == 1
+        event = event_publisher.published_events[0]
+        assert isinstance(event, InventoryAdjusted)
+        assert event.product_id == "PROD-ADJUST-001"
+        assert event.old_quantity == 100
+        assert event.new_quantity == 150
+
+    def test_adjust_inventory_decrease(self, inventory_service, repository, event_publisher):
+        """Adjust inventory downward within limits"""
+        # Arrange: Create inventory
+        inventory = Inventory(
+            product_id="PROD-ADJUST-002",
+            total_quantity=100,
+            reserved_quantity=20,
+            minimum_stock_level=10
+        )
+        repository.save(inventory)
+
+        # Act: Adjust inventory down to 60
+        result = inventory_service.adjust_inventory(
+            "PROD-ADJUST-002", 60, "Damaged goods removed", "manager@example.com"
+        )
+
+        # Assert: Inventory state updated correctly
+        assert result.total_quantity == 60
+        assert result.reserved_quantity == 20
+        assert result.available_quantity == 40
+
+    def test_adjust_inventory_below_reserved_fails(self, inventory_service, repository):
+        """Adjust inventory below reserved quantity raises error"""
+        # Arrange: Create inventory with high reservations
+        inventory = Inventory(
+            product_id="PROD-ADJUST-003",
+            total_quantity=100,
+            reserved_quantity=80,
+            minimum_stock_level=10
+        )
+        repository.save(inventory)
+
+        # Act & Assert: Should raise InvalidQuantityError
+        with pytest.raises(InvalidQuantityError, match="cannot be less than reserved"):
+            inventory_service.adjust_inventory(
+                "PROD-ADJUST-003", 50, "Invalid adjustment", "manager@example.com"
+            )

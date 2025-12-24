@@ -5,7 +5,7 @@ Tests the domain logic in isolation without external dependencies.
 import pytest
 from src.domain.inventory import Inventory
 from src.domain.exceptions import InvalidQuantityError, InsufficientStockError
-from src.domain.events import InventoryReserved, InventoryReleased
+from src.domain.events import InventoryReserved, InventoryReleased, InventoryAdjusted
 
 
 class TestInventoryCreation:
@@ -257,3 +257,84 @@ class TestInventoryRelease:
 
         with pytest.raises(InvalidQuantityError, match="Quantity must be positive"):
             inventory.release(0)
+
+
+class TestInventoryAdjust:
+    """Test Inventory.adjust() method"""
+
+    def test_adjust_increasing_total(self):
+        """T058: Adjust inventory by increasing total quantity"""
+        inventory = Inventory(
+            product_id="PROD-020",
+            total_quantity=100,
+            reserved_quantity=20,
+            minimum_stock_level=10
+        )
+
+        events = inventory.adjust(150, "Physical count increase", "manager@example.com")
+
+        assert inventory.total_quantity == 150
+        assert inventory.reserved_quantity == 20
+        assert inventory.available_quantity == 130
+        assert len(events) == 1
+        assert isinstance(events[0], InventoryAdjusted)
+        assert events[0].product_id == "PROD-020"
+        assert events[0].old_quantity == 100
+        assert events[0].new_quantity == 150
+
+    def test_adjust_decreasing_total_within_limits(self):
+        """T059: Adjust inventory by decreasing total within limits"""
+        inventory = Inventory(
+            product_id="PROD-021",
+            total_quantity=100,
+            reserved_quantity=20,
+            minimum_stock_level=10
+        )
+
+        events = inventory.adjust(80, "Damaged goods removed", "manager@example.com")
+
+        assert inventory.total_quantity == 80
+        assert inventory.reserved_quantity == 20
+        assert inventory.available_quantity == 60
+
+    def test_adjust_failing_when_new_total_less_than_reserved(self):
+        """T060: Adjust fails when new total is less than reserved"""
+        inventory = Inventory(
+            product_id="PROD-022",
+            total_quantity=100,
+            reserved_quantity=50,
+            minimum_stock_level=10
+        )
+
+        with pytest.raises(InvalidQuantityError, match="New total.*cannot be less than reserved"):
+            inventory.adjust(40, "Invalid adjustment", "manager@example.com")
+
+    def test_adjust_emits_inventory_adjusted_event(self):
+        """T061: Adjust inventory emits InventoryAdjusted event"""
+        inventory = Inventory(
+            product_id="PROD-023",
+            total_quantity=100,
+            reserved_quantity=20,
+            minimum_stock_level=10
+        )
+
+        events = inventory.adjust(120, "Stock recount", "manager@example.com")
+
+        assert len(events) == 1
+        event = events[0]
+        assert isinstance(event, InventoryAdjusted)
+        assert event.product_id == "PROD-023"
+        assert event.old_quantity == 100
+        assert event.new_quantity == 120
+        assert event.timestamp is not None
+
+    def test_adjust_with_negative_total_raises_error(self):
+        """T060: Adjust with negative total raises error"""
+        inventory = Inventory(
+            product_id="PROD-024",
+            total_quantity=100,
+            reserved_quantity=0
+        )
+
+        with pytest.raises(InvalidQuantityError, match="Total quantity cannot be negative"):
+            inventory.adjust(-10, "Invalid", "manager@example.com")

@@ -155,20 +155,20 @@
 
 ### Tests for User Story 4 (TDD - Write FIRST)
 
-- [ ] T058 [P] [US4] Write unit test for Inventory.adjust() increasing total in tests/unit/test_inventory_aggregate.py
-- [ ] T059 [P] [US4] Write unit test for Inventory.adjust() decreasing total within limits in tests/unit/test_inventory_aggregate.py
-- [ ] T060 [P] [US4] Write unit test for Inventory.adjust() failing when new_total < reserved in tests/unit/test_inventory_aggregate.py
-- [ ] T061 [P] [US4] Write unit test for Inventory.adjust() emitting InventoryAdjusted event in tests/unit/test_inventory_aggregate.py
-- [ ] T062 [P] [US4] Write integration test for adjustment workflow in tests/integration/test_inventory_workflows.py
-- [ ] T063 [P] [US4] Write contract test for PUT /v1/inventory/{product_id} endpoint in tests/contract/test_inventory_api.py
+- [x] T058 [P] [US4] Write unit test for Inventory.adjust() increasing total in tests/unit/test_inventory_aggregate.py
+- [x] T059 [P] [US4] Write unit test for Inventory.adjust() decreasing total within limits in tests/unit/test_inventory_aggregate.py
+- [x] T060 [P] [US4] Write unit test for Inventory.adjust() failing when new_total < reserved in tests/unit/test_inventory_aggregate.py
+- [x] T061 [P] [US4] Write unit test for Inventory.adjust() emitting InventoryAdjusted event in tests/unit/test_inventory_aggregate.py
+- [x] T062 [P] [US4] Write integration test for adjustment workflow in tests/integration/test_inventory_workflows.py
+- [x] T063 [P] [US4] Write contract test for PUT /v1/inventory/{product_id} endpoint in tests/contract/test_inventory_api.py
 
 ### Implementation for User Story 4
 
-- [ ] T064 [US4] Implement Inventory.adjust(new_total_quantity) method in src/domain/inventory.py (validate invariants, update total, return events)
-- [ ] T065 [US4] Implement InventoryService.adjust_inventory method in src/application/inventory_service.py (get with lock, call adjust, save, publish events)
-- [ ] T066 [US4] Implement PUT /v1/inventory/{product_id} endpoint in src/infrastructure/api/routes.py (parse AdjustInventoryRequest, call service)
-- [ ] T067 [US4] Add error handling for adjustment validation failures in src/infrastructure/api/routes.py
-- [ ] T068 [US4] Run all User Story 4 tests and verify they pass
+- [x] T064 [US4] Implement Inventory.adjust(new_total_quantity) method in src/domain/inventory.py (validate invariants, update total, return events)
+- [x] T065 [US4] Implement InventoryService.adjust_inventory method in src/application/inventory_service.py (get with lock, call adjust, save, publish events)
+- [x] T066 [US4] Implement PUT /v1/inventory/{product_id} endpoint in src/infrastructure/api/routes.py (parse AdjustInventoryRequest, call service)
+- [x] T067 [US4] Add error handling for adjustment validation failures in src/infrastructure/api/routes.py
+- [x] T068 [US4] Run all User Story 4 tests and verify they pass
 
 **Checkpoint**: At this point, all core inventory operations (query, reserve, release, adjust) are functional
 

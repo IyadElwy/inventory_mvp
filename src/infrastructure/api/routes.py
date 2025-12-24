@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from datetime import datetime
 from src.application.inventory_service import InventoryService
 from src.infrastructure.api.schemas import (
-    InventoryResponse, ErrorResponse, ReserveInventoryRequest, ReleaseInventoryRequest, OperationResult
+    InventoryResponse, ErrorResponse, ReserveInventoryRequest, ReleaseInventoryRequest,
+    AdjustInventoryRequest, OperationResult
 )
 from src.infrastructure.api.dependencies import get_repo_dependency
 from src.infrastructure.events.local_publisher import LocalEventPublisher
@@ -223,6 +224,79 @@ def release_inventory(
 
     except Exception as e:
         logger.error(f"Unexpected error releasing inventory for {product_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+@router.put(
+    "/inventory/{product_id}",
+    response_model=OperationResult,
+    responses={
+        404: {"model": ErrorResponse, "description": "Product not found"},
+        422: {"description": "Validation error"}
+    }
+)
+def adjust_inventory(
+    product_id: str,
+    request: AdjustInventoryRequest,
+    service: InventoryService = Depends(get_inventory_service)
+):
+    """
+    Adjust total inventory quantity for physical stock counts.
+
+    Args:
+        product_id: Product identifier
+        request: Adjustment request with new quantity, reason, and adjusted_by
+
+    Returns:
+        OperationResult with updated inventory status
+
+    Raises:
+        HTTPException 404: Product not found
+        HTTPException 422: Invalid request data
+    """
+    try:
+        logger.info(f"PUT /inventory/{product_id} - new quantity: {request.new_quantity}")
+
+        inventory = service.adjust_inventory(
+            product_id=product_id,
+            new_quantity=request.new_quantity,
+            reason=request.reason,
+            adjusted_by=request.adjusted_by
+        )
+
+        inventory_response = InventoryResponse(
+            product_id=inventory.product_id,
+            total_quantity=inventory.total_quantity,
+            reserved_quantity=inventory.reserved_quantity,
+            available_quantity=inventory.available_quantity,
+            minimum_stock_level=inventory.minimum_stock_level
+        )
+
+        return OperationResult(
+            success=True,
+            message=f"Successfully adjusted inventory to {request.new_quantity} units",
+            inventory=inventory_response
+        )
+
+    except InventoryNotFoundError as e:
+        logger.warning(f"Product not found: {product_id}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+
+    except InvalidQuantityError as e:
+        logger.warning(f"Invalid adjustment for {product_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e)
+        )
+
+    except Exception as e:
+        logger.error(f"Unexpected error adjusting inventory for {product_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"

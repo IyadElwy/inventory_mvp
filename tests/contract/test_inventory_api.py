@@ -274,3 +274,91 @@ class TestReleaseInventoryEndpoint:
 
         # Assert: 422 Validation Error
         assert response.status_code == 422
+
+
+class TestAdjustInventoryEndpoint:
+    """T063: Test PUT /v1/inventory/{product_id} endpoint contract"""
+
+    def test_adjust_inventory_success(self, client, setup_test_inventory, db_session):
+        """PUT adjust inventory returns correct schema with 200"""
+        # Arrange: Prepare adjustment request
+        adjust_request = {
+            "new_quantity": 200,
+            "reason": "Physical stock count",
+            "adjusted_by": "manager@example.com"
+        }
+
+        # Act: Call API endpoint
+        response = client.put("/v1/inventory/PROD-API-001", json=adjust_request)
+
+        # Assert: Status code and response schema
+        assert response.status_code == 200
+
+        data = response.json()
+        assert "success" in data
+        assert "message" in data
+        assert "inventory" in data
+
+        assert data["success"] is True
+
+        # Verify inventory state
+        inventory = data["inventory"]
+        assert inventory["product_id"] == "PROD-API-001"
+        assert inventory["total_quantity"] == 200
+
+    def test_adjust_inventory_below_reserved_fails(self, client, setup_test_inventory):
+        """PUT adjust below reserved quantity returns 422"""
+        # Arrange: First reserve some inventory
+        reserve_request = {"quantity": 100, "order_id": "ORDER-ADJ-001"}
+        client.post("/v1/inventory/PROD-API-001/reserve", json=reserve_request)
+
+        # Try to adjust below reserved
+        adjust_request = {
+            "new_quantity": 50,  # Less than 130 reserved (30 + 100)
+            "reason": "Invalid adjustment",
+            "adjusted_by": "manager@example.com"
+        }
+
+        # Act: Call API endpoint
+        response = client.put("/v1/inventory/PROD-API-001", json=adjust_request)
+
+        # Assert: 422 Validation Error
+        assert response.status_code == 422
+
+        data = response.json()
+        assert "detail" in data
+        assert "cannot be less than reserved" in data["detail"]
+
+    def test_adjust_inventory_product_not_found(self, client):
+        """PUT adjust for non-existent product returns 404"""
+        # Arrange: Valid request for non-existent product
+        adjust_request = {
+            "new_quantity": 100,
+            "reason": "Test",
+            "adjusted_by": "manager@example.com"
+        }
+
+        # Act: Call API with non-existent product
+        response = client.put("/v1/inventory/PROD-NONEXISTENT", json=adjust_request)
+
+        # Assert: 404 status code
+        assert response.status_code == 404
+
+        data = response.json()
+        assert "detail" in data
+        assert "PROD-NONEXISTENT" in data["detail"]
+
+    def test_adjust_inventory_negative_quantity(self, client, setup_test_inventory):
+        """PUT adjust with negative quantity returns 422"""
+        # Arrange: Negative new quantity
+        adjust_request = {
+            "new_quantity": -10,
+            "reason": "Invalid",
+            "adjusted_by": "manager@example.com"
+        }
+
+        # Act: Call API endpoint
+        response = client.put("/v1/inventory/PROD-API-001", json=adjust_request)
+
+        # Assert: 422 Validation Error for negative quantity
+        assert response.status_code == 422

@@ -5,7 +5,7 @@ Represents the core inventory business logic with validation and invariants.
 from dataclasses import dataclass, field
 from typing import List, Any
 from src.domain.exceptions import InvalidQuantityError, InsufficientStockError
-from src.domain.events import InventoryReserved, InventoryReleased
+from src.domain.events import InventoryReserved, InventoryReleased, InventoryAdjusted
 
 
 @dataclass
@@ -127,6 +127,50 @@ class Inventory:
         event = InventoryReleased(
             product_id=self.product_id,
             quantity=quantity
+        )
+
+        return [event]
+
+    def adjust(self, new_total_quantity: int, reason: str, adjusted_by: str) -> List[Any]:
+        """
+        Adjust total inventory quantity for physical stock counts.
+
+        Args:
+            new_total_quantity: New total quantity
+            reason: Reason for adjustment (e.g., "Physical count")
+            adjusted_by: User/system performing adjustment
+
+        Returns:
+            List of domain events emitted
+
+        Raises:
+            InvalidQuantityError: If new total is invalid or less than reserved
+        """
+        # Validate new total
+        if new_total_quantity < 0:
+            raise InvalidQuantityError("Total quantity cannot be negative")
+
+        # Check that new total >= reserved
+        if new_total_quantity < self.reserved_quantity:
+            raise InvalidQuantityError(
+                f"New total quantity ({new_total_quantity}) cannot be less than "
+                f"reserved quantity ({self.reserved_quantity})"
+            )
+
+        # Store old quantity for event
+        old_quantity = self.total_quantity
+
+        # Update total quantity
+        self.total_quantity = new_total_quantity
+
+        # Re-validate invariants after mutation
+        self._validate_invariants()
+
+        # Emit domain event
+        event = InventoryAdjusted(
+            product_id=self.product_id,
+            old_quantity=old_quantity,
+            new_quantity=new_total_quantity
         )
 
         return [event]

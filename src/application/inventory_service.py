@@ -137,3 +137,46 @@ class InventoryService:
         )
 
         return inventory
+
+    def adjust_inventory(self, product_id: str, new_quantity: int, reason: str, adjusted_by: str) -> Inventory:
+        """
+        Adjust total inventory quantity for physical stock counts.
+
+        Args:
+            product_id: Product identifier
+            new_quantity: New total quantity
+            reason: Reason for adjustment
+            adjusted_by: User or system performing adjustment
+
+        Returns:
+            Updated inventory aggregate
+
+        Raises:
+            InventoryNotFoundError: If product not found
+            InvalidQuantityError: If new quantity is invalid
+        """
+        logger.info(f"Adjusting {product_id} to {new_quantity}. Reason: {reason}, By: {adjusted_by}")
+
+        # Get inventory with row lock to prevent concurrent modifications
+        inventory = self.repository.get(product_id, for_update=True)
+
+        if inventory is None:
+            logger.warning(f"Product not found: {product_id}")
+            raise InventoryNotFoundError(f"Product {product_id} not found in inventory")
+
+        # Call domain method to adjust (validates and emits events)
+        events = inventory.adjust(new_quantity, reason, adjusted_by)
+
+        # Persist changes
+        self.repository.save(inventory)
+
+        # Publish events
+        for event in events:
+            self.event_publisher.publish(event)
+
+        logger.info(
+            f"Adjusted {product_id} from {events[0].old_quantity} to {new_quantity}. "
+            f"New available: {inventory.available_quantity}"
+        )
+
+        return inventory
