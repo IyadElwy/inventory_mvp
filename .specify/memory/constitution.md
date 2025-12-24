@@ -37,6 +37,41 @@ The system MUST be built following Domain-Driven Design principles with clear se
 
 **Rationale**: DDD ensures business logic remains central, maintainable, and aligned with business requirements. Clear boundaries prevent unintended coupling and enable independent evolution of components.
 
+
+### Domain Model
+
+#### Aggregate: Inventory
+- **Responsibility**: Manages stock levels for products, validates reservations, and enforces stock invariants
+- **State**:
+  - ProductId (identifier)
+  - TotalQuantity (total stock)
+  - ReservedQuantity (reserved for orders)
+  - AvailableQuantity (calculated: Total - Reserved)
+  - MinimumStockLevel (threshold for alerts)
+- **Invariants**:
+  - AvailableQuantity must never be negative
+  - ReservedQuantity ≤ TotalQuantity
+  - AvailableQuantity = TotalQuantity - ReservedQuantity
+
+#### Commands
+1. **ReserveInventory**: Reserve stock for an order (fails if insufficient available quantity)
+2. **ReleaseInventory**: Release reserved stock (e.g., when order is cancelled)
+3. **AdjustInventory**: Manual stock correction (e.g., after physical inventory count)
+
+#### Events
+1. **InventoryReserved**: Emitted when stock is successfully reserved
+2. **InventoryReleased**: Emitted when reservation is released
+3. **InventoryAdjusted**: Emitted when stock is manually corrected
+4. **LowStockDetected**: Emitted by policy when available quantity falls below minimum threshold
+
+#### Policies
+- **StockLevelMonitor**: After any inventory change event, check if AvailableQuantity < MinimumStockLevel and emit LowStockDetected
+
+#### Read Models
+1. **InventoryStatusReadModel**: Current stock status per product (for product detail pages)
+2. **LowStockListReadModel**: List of products with low stock (for admin dashboard)
+
+
 ### II. Modular Architecture
 
 The codebase MUST follow a modular structure where each domain concept has clear boundaries and responsibilities.

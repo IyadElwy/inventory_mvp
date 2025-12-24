@@ -79,3 +79,6 @@ Constitution Created Successfully
   - Update plan-template.md with constitution compliance gates
 
   All templates are now synchronized and ready for use with the /speckit.plan workflow.
+
+
+4. Manuelles checken vom constitution.md und plan-template.md
