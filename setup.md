@@ -359,4 +359,155 @@ Constitution Created Successfully
   The plan has passed all constitutional gates and is ready for implementation! 🎉
 
 
-  
+11. /speckit.tasks
+
+  I've generated a comprehensive, dependency-ordered task list with 92 tasks organized by user story for independent implementation and testing.
+
+  Task Breakdown by Phase
+
+  Phase 1: Setup - 14 tasks
+  - Project structure creation (directories, config files)
+  - Dependencies setup (requirements.txt, pytest.ini)
+
+  Phase 2: Foundational - 11 tasks ⚠️ BLOCKING
+  - Domain model foundation (exceptions, events, commands)
+  - Infrastructure interfaces (EventPublisher, Repository)
+  - Database models and FastAPI setup
+  - CRITICAL: All user stories blocked until this completes
+
+  Phase 3: User Story 1 (P1) - 10 tasks 🎯 MVP
+  - Check Inventory Availability
+  - 5 test tasks (TDD approach)
+  - 5 implementation tasks
+  - Independent deliverable: Query endpoint working
+
+  Phase 4: User Story 2 (P1) - 12 tasks
+  - Reserve Inventory for Orders
+  - 6 test tasks
+  - 6 implementation tasks (includes event emission)
+  - Can run in parallel with US1 after Foundational
+
+  Phase 5: User Story 3 (P2) - 10 tasks
+  - Release Reserved Inventory
+  - 5 test tasks
+  - 5 implementation tasks
+
+  Phase 6: User Story 4 (P2) - 11 tasks
+  - Adjust Inventory Levels
+  - 6 test tasks
+  - 5 implementation tasks
+
+  Phase 7: User Story 5 (P3) - 12 tasks
+  - Monitor Low Stock Alerts
+  - 5 test tasks
+  - 7 implementation tasks (includes policy)
+
+  Phase 8: Polish - 12 tasks
+  - Logging, event persistence, migrations
+  - Docker containerization
+  - Performance testing
+  - Health checks and CORS
+
+  Key Features
+
+  ✅ Test-Driven Development (TDD)
+  - All 5 user stories include comprehensive test tasks written BEFORE implementation
+  - Tests follow Red-Green-Refactor cycle
+  - 52 test tasks total (unit, integration, contract)
+  - Tests use pytest + unittest.mock as specified
+
+  ✅ Proper Task Format
+  - Every task follows checklist format: - [ ] [ID] [P?] [Story?] Description with file path
+  - Example: - [ ] T026 [P] [US1] Write unit test for Inventory aggregate creation in tests/unit/test_inventory_aggregate.py
+  - 32 tasks marked [P] for parallel execution
+  - All user story tasks tagged with [US1] through [US5]
+
+  ✅ Independent User Stories
+  - Each story can be developed, tested, and deployed independently
+  - Clear "Independent Test" criteria for each story
+  - Checkpoints after each story completion
+  - No cross-story dependencies
+
+  ✅ Parallel Execution Opportunities
+  - 32 tasks can run in parallel (marked with [P])
+  - Setup tasks: T003-T012 (10 parallel)
+  - Foundational tasks: T015-T019, T023 (6 parallel)
+  - Test tasks within stories (all [P] marked)
+  - Polish tasks: T081-T088 (8 parallel)
+
+  ✅ Complete Dependency Graph
+  - Phase dependencies clearly documented
+  - User story execution order defined
+  - Within-story task sequencing specified
+  - Parallel team strategy provided
+
+  Delivery Strategies
+
+  MVP First (35 tasks):
+  - Setup (14 tasks)
+  - Foundational (11 tasks)
+  - User Story 1 only (10 tasks)
+  - Result: Working query endpoint for inventory status
+
+  P1 Stories (57 tasks):
+  - Setup + Foundational + US1 + US2
+  - Result: Query + Reserve operations working
+  - Core inventory management functional
+
+  Full Feature (92 tasks):
+  - All 5 user stories + Polish
+  - Result: Complete inventory management microservice
+  - Production-ready with Docker, logging, performance validated
+
+  Implementation Workflow
+
+  TDD Cycle Example (per user story):
+  # 1. RED: Write failing tests
+  pytest tests/unit/test_inventory_aggregate.py -v
+  # Expected: FAILED (not implemented)
+
+  # 2. GREEN: Implement to pass
+  # Write code in src/domain/inventory.py
+  pytest tests/unit/test_inventory_aggregate.py -v
+  # Expected: PASSED
+
+  # 3. REFACTOR: Improve while keeping tests green
+  # Refactor implementation
+  pytest tests/unit/test_inventory_aggregate.py -v
+  # Expected: All PASSED
+
+  File Paths Included
+
+  Every task includes exact file paths:
+  - src/domain/inventory.py
+  - src/application/inventory_service.py
+  - src/infrastructure/api/routes.py
+  - tests/unit/test_inventory_aggregate.py
+  - tests/integration/test_inventory_workflows.py
+  - tests/contract/test_inventory_api.py
+
+  Validation
+
+  ✅ Format: All 92 tasks follow strict checklist format with checkboxes
+  ✅ IDs: Sequential T001-T092
+  ✅ Labels: [P] for parallel, [US1]-[US5] for user stories
+  ✅ Paths: Every task includes specific file paths
+  ✅ Organization: Grouped by user story for independent delivery
+  ✅ TDD: Tests written before implementation (52 test tasks)
+  ✅ Dependencies: Clear phase and story dependencies documented
+
+  Next Steps
+
+  Start Implementation:
+  # Begin with MVP (User Story 1 only)
+  # Complete T001-T035 (Setup + Foundational + US1)
+
+  # Or start with Setup phase
+  # Complete T001-T014
+
+  Track Progress:
+  - Check off tasks as completed in tasks.md
+  - Run tests frequently to verify progress
+  - Deploy after each user story for incremental value
+
+  The task list is ready for immediate execution with clear, actionable items that an LLM or developer can complete independently! 🎉
