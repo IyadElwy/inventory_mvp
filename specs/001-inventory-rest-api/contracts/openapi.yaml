@@ -1,0 +1,431 @@
+openapi: 3.1.0
+info:
+  title: Inventory Management API
+  description: |
+    REST API for managing inventory reservations, releases, and adjustments.
+
+    **Domain-Driven Design Elements:**
+    - Aggregate: Inventory (product stock levels)
+    - Commands: Reserve, Release, Adjust
+    - Events: InventoryReserved, InventoryReleased, InventoryAdjusted, LowStockDetected
+    - Policies: StockLevelMonitor (auto-emits low stock alerts)
+
+    **Business Rules:**
+    - AvailableQuantity = TotalQuantity - ReservedQuantity
+    - AvailableQuantity must never be negative
+    - ReservedQuantity cannot exceed TotalQuantity
+  version: 1.0.0
+  contact:
+    name: Inventory API Support
+    email: api@inventory.example.com
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+  - url: https://api.inventory.example.com
+    description: Production server
+
+tags:
+  - name: Inventory
+    description: Inventory query and management operations
+  - name: Monitoring
+    description: Low stock monitoring and alerts
+
+paths:
+  /v1/inventory/{product_id}:
+    get:
+      summary: Get inventory status
+      description: Query current inventory levels for a product
+      operationId: getInventory
+      tags:
+        - Inventory
+      parameters:
+        - name: product_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique product identifier
+          example: PROD-12345
+      responses:
+        '200':
+          description: Inventory status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryResponse'
+        '404':
+          description: Product not found in inventory
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: InventoryNotFound
+                detail: Product PROD-12345 not found in inventory
+                timestamp: '2025-12-24T10:30:00Z'
+
+    put:
+      summary: Adjust inventory quantity
+      description: Manually adjust total inventory quantity (e.g., after physical stock count)
+      operationId: adjustInventory
+      tags:
+        - Inventory
+      parameters:
+        - name: product_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique product identifier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdjustInventoryRequest'
+      responses:
+        '200':
+          description: Inventory adjusted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResult'
+        '400':
+          description: Invalid request (negative quantity, violates invariants)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: InvalidQuantity
+                detail: Cannot adjust to 10. 15 units currently reserved.
+                timestamp: '2025-12-24T10:30:00Z'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/inventory/{product_id}/reserve:
+    post:
+      summary: Reserve inventory
+      description: |
+        Reserve inventory for an order. Decreases available quantity.
+        Emits InventoryReserved event on success.
+        May emit LowStockDetected event if below minimum threshold.
+      operationId: reserveInventory
+      tags:
+        - Inventory
+      parameters:
+        - name: product_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique product identifier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReserveInventoryRequest'
+      responses:
+        '200':
+          description: Inventory reserved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResult'
+        '400':
+          description: Invalid request (zero/negative quantity)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Insufficient stock to fulfill reservation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: InsufficientStock
+                detail: Cannot reserve 10 units. Only 5 available.
+                timestamp: '2025-12-24T10:30:00Z'
+
+  /v1/inventory/{product_id}/release:
+    post:
+      summary: Release reserved inventory
+      description: |
+        Release previously reserved inventory back to available pool.
+        Emits InventoryReleased event on success.
+      operationId: releaseInventory
+      tags:
+        - Inventory
+      parameters:
+        - name: product_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique product identifier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReleaseInventoryRequest'
+      responses:
+        '200':
+          description: Inventory released successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResult'
+        '400':
+          description: Invalid request (quantity exceeds reserved amount)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: InvalidQuantity
+                detail: Cannot release 10 units. Only 5 reserved.
+                timestamp: '2025-12-24T10:30:00Z'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/inventory/low-stock:
+    get:
+      summary: Get low stock items
+      description: Query all products with available quantity below minimum stock level
+      operationId: getLowStock
+      tags:
+        - Monitoring
+      responses:
+        '200':
+          description: Low stock items retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LowStockResponse'
+
+components:
+  schemas:
+    InventoryResponse:
+      type: object
+      required:
+        - product_id
+        - total_quantity
+        - reserved_quantity
+        - available_quantity
+        - minimum_stock_level
+      properties:
+        product_id:
+          type: string
+          description: Unique product identifier
+          example: PROD-12345
+        total_quantity:
+          type: integer
+          description: Total stock on hand
+          example: 100
+          minimum: 0
+        reserved_quantity:
+          type: integer
+          description: Stock reserved for pending orders
+          example: 20
+          minimum: 0
+        available_quantity:
+          type: integer
+          description: Stock available for new reservations (total - reserved)
+          example: 80
+          minimum: 0
+          readOnly: true
+        minimum_stock_level:
+          type: integer
+          description: Threshold for low stock alerts
+          example: 10
+          minimum: 0
+
+    ReserveInventoryRequest:
+      type: object
+      required:
+        - quantity
+        - order_id
+      properties:
+        quantity:
+          type: integer
+          description: Quantity to reserve
+          example: 10
+          minimum: 1
+        order_id:
+          type: string
+          description: Order ID for idempotency tracking
+          example: ORD-98765
+          minLength: 1
+
+    ReleaseInventoryRequest:
+      type: object
+      required:
+        - quantity
+        - order_id
+        - reason
+      properties:
+        quantity:
+          type: integer
+          description: Quantity to release
+          example: 5
+          minimum: 1
+        order_id:
+          type: string
+          description: Order ID
+          example: ORD-98765
+          minLength: 1
+        reason:
+          type: string
+          description: Reason for release
+          example: order_cancelled
+          enum:
+            - order_cancelled
+            - payment_failed
+            - order_timeout
+            - other
+
+    AdjustInventoryRequest:
+      type: object
+      required:
+        - new_quantity
+        - reason
+        - adjusted_by
+      properties:
+        new_quantity:
+          type: integer
+          description: New total quantity
+          example: 120
+          minimum: 0
+        reason:
+          type: string
+          description: Reason for adjustment
+          example: physical_count
+          enum:
+            - physical_count
+            - damaged_goods
+            - found_inventory
+            - data_correction
+            - other
+        adjusted_by:
+          type: string
+          description: User or system performing adjustment
+          example: warehouse_manager_001
+          minLength: 1
+
+    OperationResult:
+      type: object
+      required:
+        - success
+        - message
+        - inventory
+      properties:
+        success:
+          type: boolean
+          description: Whether operation succeeded
+          example: true
+        message:
+          type: string
+          description: Human-readable result message
+          example: Inventory reserved successfully
+        inventory:
+          $ref: '#/components/schemas/InventoryResponse'
+
+    LowStockItem:
+      type: object
+      required:
+        - product_id
+        - available_quantity
+        - minimum_stock_level
+        - shortfall
+      properties:
+        product_id:
+          type: string
+          description: Product identifier
+          example: PROD-12345
+        available_quantity:
+          type: integer
+          description: Current available quantity
+          example: 5
+          minimum: 0
+        minimum_stock_level:
+          type: integer
+          description: Configured minimum threshold
+          example: 10
+          minimum: 0
+        shortfall:
+          type: integer
+          description: Amount below threshold (minimum - available)
+          example: 5
+          minimum: 1
+
+    LowStockResponse:
+      type: object
+      required:
+        - items
+        - count
+      properties:
+        items:
+          type: array
+          description: List of products below minimum stock level
+          items:
+            $ref: '#/components/schemas/LowStockItem'
+        count:
+          type: integer
+          description: Total number of low stock items
+          example: 3
+          minimum: 0
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - detail
+        - timestamp
+      properties:
+        error:
+          type: string
+          description: Error type/code
+          example: InsufficientStock
+          enum:
+            - InvalidQuantity
+            - InsufficientStock
+            - InventoryNotFound
+            - ValidationError
+        detail:
+          type: string
+          description: Human-readable error message
+          example: Cannot reserve 10 units. Only 5 available.
+        timestamp:
+          type: string
+          format: date-time
+          description: Error timestamp in ISO 8601 format
+          example: '2025-12-24T10:30:00Z'
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token provided by external authentication service
+
+security:
+  - BearerAuth: []
