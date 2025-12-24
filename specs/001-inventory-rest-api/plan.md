@@ -113,6 +113,7 @@ src/
 │   └── events/
 │       └── local_publisher.py # In-memory event publisher
 └── main.py              # FastAPI application entry point
+└── sqlite.db              # The sqlite db
 
 tests/
 ├── unit/                # Domain and application logic tests
