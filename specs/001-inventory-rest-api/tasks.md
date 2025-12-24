@@ -24,21 +24,21 @@
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Create root-level project files (requirements.txt, pytest.ini, Dockerfile)
-- [ ] T002 Create src/ directory with __init__.py
-- [ ] T003 [P] Create src/domain/ directory with __init__.py
-- [ ] T004 [P] Create src/application/ directory with __init__.py
-- [ ] T005 [P] Create src/infrastructure/ directory with __init__.py
-- [ ] T006 [P] Create tests/unit/ directory
-- [ ] T007 [P] Create tests/integration/ directory
-- [ ] T008 [P] Create tests/contract/ directory
-- [ ] T009 [P] Create src/infrastructure/database/ directory with __init__.py
-- [ ] T010 [P] Create src/infrastructure/api/ directory with __init__.py
-- [ ] T011 [P] Create src/infrastructure/events/ directory with __init__.py
-- [ ] T012 [P] Create src/application/policies/ directory with __init__.py
-- [ ] T013 Write requirements.txt with FastAPI, SQLAlchemy, Pydantic, pytest, httpx dependencies
-- [ ] T014 Configure pytest.ini with test paths and coverage settings
-- [ ] T014a Create .env.example file with DATABASE_PATH, LOG_LEVEL, HOST, PORT environment variables
+- [x] T001 Create root-level project files (requirements.txt, pytest.ini, Dockerfile)
+- [x] T002 Create src/ directory with __init__.py
+- [x] T003 [P] Create src/domain/ directory with __init__.py
+- [x] T004 [P] Create src/application/ directory with __init__.py
+- [x] T005 [P] Create src/infrastructure/ directory with __init__.py
+- [x] T006 [P] Create tests/unit/ directory
+- [x] T007 [P] Create tests/integration/ directory
+- [x] T008 [P] Create tests/contract/ directory
+- [x] T009 [P] Create src/infrastructure/database/ directory with __init__.py
+- [x] T010 [P] Create src/infrastructure/api/ directory with __init__.py
+- [x] T011 [P] Create src/infrastructure/events/ directory with __init__.py
+- [x] T012 [P] Create src/application/policies/ directory with __init__.py
+- [x] T013 Write requirements.txt with FastAPI, SQLAlchemy, Pydantic, pytest, httpx dependencies
+- [x] T014 Configure pytest.ini with test paths and coverage settings
+- [x] T014a Create .env.example file with DATABASE_PATH, LOG_LEVEL, HOST, PORT environment variables
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
