@@ -94,3 +94,46 @@ class InventoryService:
         )
 
         return inventory
+
+    def release_inventory(self, product_id: str, quantity: int, order_id: str, reason: str) -> Inventory:
+        """
+        Release reserved inventory back to available pool.
+
+        Args:
+            product_id: Product identifier
+            quantity: Quantity to release
+            order_id: Order ID for tracking
+            reason: Reason for release (e.g., "Customer cancellation")
+
+        Returns:
+            Updated inventory aggregate
+
+        Raises:
+            InventoryNotFoundError: If product not found
+            InvalidQuantityError: If quantity is invalid or exceeds reserved
+        """
+        logger.info(f"Releasing {quantity} units of {product_id} for order {order_id}. Reason: {reason}")
+
+        # Get inventory with row lock to prevent concurrent modifications
+        inventory = self.repository.get(product_id, for_update=True)
+
+        if inventory is None:
+            logger.warning(f"Product not found: {product_id}")
+            raise InventoryNotFoundError(f"Product {product_id} not found in inventory")
+
+        # Call domain method to release (validates and emits events)
+        events = inventory.release(quantity)
+
+        # Persist changes
+        self.repository.save(inventory)
+
+        # Publish events
+        for event in events:
+            self.event_publisher.publish(event)
+
+        logger.info(
+            f"Released {quantity} units of {product_id}. "
+            f"New reserved: {inventory.reserved_quantity}, available: {inventory.available_quantity}"
+        )
+
+        return inventory

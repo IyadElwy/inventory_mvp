@@ -8,8 +8,8 @@ from src.application.inventory_service import InventoryService
 from src.infrastructure.database.repository import InventoryRepository
 from src.infrastructure.events.local_publisher import LocalEventPublisher
 from src.domain.inventory import Inventory
-from src.domain.exceptions import InventoryNotFoundError, InsufficientStockError
-from src.domain.events import InventoryReserved
+from src.domain.exceptions import InventoryNotFoundError, InsufficientStockError, InvalidQuantityError
+from src.domain.events import InventoryReserved, InventoryReleased
 from src.infrastructure.database.session import get_db
 
 
@@ -131,3 +131,72 @@ class TestReserveInventoryWorkflow:
         # Act & Assert: Should raise InsufficientStockError
         with pytest.raises(InsufficientStockError, match="PROD-RESERVE-002"):
             inventory_service.reserve_inventory("PROD-RESERVE-002", 10, "ORDER-456")
+
+
+class TestReleaseInventoryWorkflow:
+    """T051: Test releasing reserved inventory via service"""
+
+    def test_release_inventory_success(self, inventory_service, repository, event_publisher):
+        """Release reserved inventory successfully and verify state + events"""
+        # Arrange: Create inventory with reservations
+        inventory = Inventory(
+            product_id="PROD-RELEASE-001",
+            total_quantity=100,
+            reserved_quantity=50,
+            minimum_stock_level=10
+        )
+        repository.save(inventory)
+
+        # Act: Release inventory via service
+        result = inventory_service.release_inventory("PROD-RELEASE-001", 30, "ORDER-789", "Customer cancellation")
+
+        # Assert: Inventory state updated correctly
+        assert result.reserved_quantity == 20
+        assert result.available_quantity == 80
+
+        # Assert: Event was published
+        assert len(event_publisher.published_events) == 1
+        event = event_publisher.published_events[0]
+        assert isinstance(event, InventoryReleased)
+        assert event.product_id == "PROD-RELEASE-001"
+        assert event.quantity == 30
+
+    def test_release_inventory_exceeding_reserved(self, inventory_service, repository):
+        """Release quantity exceeding reserved raises error"""
+        # Arrange: Create inventory with limited reservations
+        inventory = Inventory(
+            product_id="PROD-RELEASE-002",
+            total_quantity=100,
+            reserved_quantity=20,
+            minimum_stock_level=10
+        )
+        repository.save(inventory)
+
+        # Act & Assert: Should raise InvalidQuantityError
+        with pytest.raises(InvalidQuantityError, match="Cannot release"):
+            inventory_service.release_inventory("PROD-RELEASE-002", 50, "ORDER-999", "Test")
+
+    def test_reserve_then_release_workflow(self, inventory_service, repository, event_publisher):
+        """Test complete reserve-then-release workflow"""
+        # Arrange: Create inventory
+        inventory = Inventory(
+            product_id="PROD-WORKFLOW-001",
+            total_quantity=100,
+            reserved_quantity=0,
+            minimum_stock_level=10
+        )
+        repository.save(inventory)
+        original_available = inventory.available_quantity
+
+        # Act: Reserve then release
+        inventory_service.reserve_inventory("PROD-WORKFLOW-001", 30, "ORDER-123")
+        result = inventory_service.release_inventory("PROD-WORKFLOW-001", 30, "ORDER-123", "Order cancelled")
+
+        # Assert: Available quantity returns to original
+        assert result.available_quantity == original_available
+        assert result.reserved_quantity == 0
+
+        # Assert: Both events were published
+        assert len(event_publisher.published_events) == 2
+        assert isinstance(event_publisher.published_events[0], InventoryReserved)
+        assert isinstance(event_publisher.published_events[1], InventoryReleased)

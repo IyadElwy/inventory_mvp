@@ -183,3 +183,94 @@ class TestReserveInventoryEndpoint:
 
         # Assert: 422 Validation Error
         assert response.status_code == 422
+
+
+class TestReleaseInventoryEndpoint:
+    """T052: Test POST /v1/inventory/{product_id}/release endpoint contract"""
+
+    def test_release_inventory_success(self, client, setup_test_inventory, db_session):
+        """POST release inventory returns correct schema with 200"""
+        # Arrange: First reserve some inventory, then release it
+        reserve_request = {
+            "quantity": 40,
+            "order_id": "ORDER-RELEASE-001"
+        }
+        client.post("/v1/inventory/PROD-API-001/reserve", json=reserve_request)
+
+        # Prepare release request
+        release_request = {
+            "quantity": 20,
+            "order_id": "ORDER-RELEASE-001",
+            "reason": "Customer cancellation"
+        }
+
+        # Act: Call release API endpoint
+        response = client.post("/v1/inventory/PROD-API-001/release", json=release_request)
+
+        # Assert: Status code and response schema
+        assert response.status_code == 200
+
+        data = response.json()
+        assert "success" in data
+        assert "message" in data
+        assert "inventory" in data
+
+        assert data["success"] is True
+
+        # Verify inventory state (started with 30 reserved, added 40, released 20 = 50 reserved)
+        inventory = data["inventory"]
+        assert inventory["product_id"] == "PROD-API-001"
+        assert inventory["reserved_quantity"] == 50  # 30 + 40 - 20
+
+    def test_release_inventory_exceeding_reserved(self, client, setup_test_inventory):
+        """POST release exceeding reserved quantity returns 422"""
+        # Arrange: Try to release more than reserved
+        release_request = {
+            "quantity": 200,
+            "order_id": "ORDER-RELEASE-002",
+            "reason": "Test error"
+        }
+
+        # Act: Call API endpoint
+        response = client.post("/v1/inventory/PROD-API-001/release", json=release_request)
+
+        # Assert: 422 Validation Error
+        assert response.status_code == 422
+
+        data = response.json()
+        assert "detail" in data
+        assert "Cannot release" in data["detail"]
+
+    def test_release_inventory_product_not_found(self, client):
+        """POST release for non-existent product returns 404"""
+        # Arrange: Valid request for non-existent product
+        release_request = {
+            "quantity": 10,
+            "order_id": "ORDER-RELEASE-003",
+            "reason": "Test"
+        }
+
+        # Act: Call API with non-existent product
+        response = client.post("/v1/inventory/PROD-NONEXISTENT/release", json=release_request)
+
+        # Assert: 404 status code
+        assert response.status_code == 404
+
+        data = response.json()
+        assert "detail" in data
+        assert "PROD-NONEXISTENT" in data["detail"]
+
+    def test_release_inventory_invalid_quantity(self, client, setup_test_inventory):
+        """POST release with invalid quantity returns 422"""
+        # Arrange: Negative quantity
+        release_request = {
+            "quantity": -10,
+            "order_id": "ORDER-RELEASE-004",
+            "reason": "Test"
+        }
+
+        # Act: Call API endpoint
+        response = client.post("/v1/inventory/PROD-API-001/release", json=release_request)
+
+        # Assert: 422 Validation Error
+        assert response.status_code == 422

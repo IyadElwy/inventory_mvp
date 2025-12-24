@@ -5,7 +5,7 @@ Represents the core inventory business logic with validation and invariants.
 from dataclasses import dataclass, field
 from typing import List, Any
 from src.domain.exceptions import InvalidQuantityError, InsufficientStockError
-from src.domain.events import InventoryReserved
+from src.domain.events import InventoryReserved, InventoryReleased
 
 
 @dataclass
@@ -87,6 +87,44 @@ class Inventory:
 
         # Emit domain event
         event = InventoryReserved(
+            product_id=self.product_id,
+            quantity=quantity
+        )
+
+        return [event]
+
+    def release(self, quantity: int) -> List[Any]:
+        """
+        Release reserved inventory back to available pool.
+
+        Args:
+            quantity: Amount to release (must be positive)
+
+        Returns:
+            List of domain events emitted
+
+        Raises:
+            InvalidQuantityError: If quantity is not positive or exceeds reserved
+        """
+        # Validate quantity
+        if quantity <= 0:
+            raise InvalidQuantityError("Quantity must be positive")
+
+        # Check against reserved quantity
+        if quantity > self.reserved_quantity:
+            raise InvalidQuantityError(
+                f"Cannot release {quantity} units of product {self.product_id}. "
+                f"Only {self.reserved_quantity} reserved."
+            )
+
+        # Update reserved quantity
+        self.reserved_quantity -= quantity
+
+        # Re-validate invariants after mutation
+        self._validate_invariants()
+
+        # Emit domain event
+        event = InventoryReleased(
             product_id=self.product_id,
             quantity=quantity
         )

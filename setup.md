@@ -672,3 +672,147 @@ Constitution Created Successfully
   - Tasks T036-T047 (12 tasks)
   - Implements atomic inventory reservation
   - Prevents overselling through database locking
+
+/speckit.implement Phase 4
+
+● Phase 4 Complete - User Story 2 (Reserve Inventory for Orders)
+
+  Phase 4 implementation is complete! All 12 tasks (T036-T047) have been successfully implemented and tested following Test-Driven Development (TDD) principles.
+
+  Summary
+
+  Implemented Features:
+  - User Story 2: Reserve Inventory for Orders (Priority P1)
+  - POST /v1/inventory/{product_id}/reserve API endpoint
+  - Atomic inventory reservation with database locking (SELECT FOR UPDATE)
+  - Event emission for InventoryReserved events
+  - Complete error handling (404, 409 Conflict, 422 Validation)
+
+  Files Modified:
+  1. src/domain/inventory.py - Added reserve() method (lines 57-94)
+  2. src/application/inventory_service.py - Added reserve_inventory() method (lines 55-96)
+  3. src/infrastructure/api/routes.py - Added POST reserve endpoint (lines 78-156)
+  4. tests/unit/test_inventory_aggregate.py - Added TestInventoryReserve class (5 tests)
+  5. tests/integration/test_inventory_workflows.py - Added TestReserveInventoryWorkflow class (2 tests)
+  6. tests/contract/test_inventory_api.py - Added TestReserveInventoryEndpoint class (4 tests)
+
+  Test Results:
+  - ✅ 26/26 tests passing (Phase 3 + Phase 4)
+  - ✅ Unit tests: 14 passed (9 + 5 new)
+  - ✅ Integration tests: 5 passed (3 + 2 new)
+  - ✅ Contract tests: 7 passed (3 + 4 new)
+  - ✅ Code coverage: 79% overall (up from 68%)
+
+  Key Implementation Details:
+
+  1. Domain Layer (src/domain/inventory.py:57-94):
+    - reserve(quantity) method validates and updates reserved quantity
+    - Raises InvalidQuantityError for non-positive quantities
+    - Raises InsufficientStockError when available < requested
+    - Emits InventoryReserved domain event
+    - Re-validates invariants after mutation
+  2. Application Layer (src/application/inventory_service.py:55-96):
+    - reserve_inventory() uses for_update=True for row locking
+    - Prevents concurrent reservation race conditions
+    - Calls domain method, persists changes, publishes events
+    - Atomic transaction with SELECT FOR UPDATE
+  3. API Layer (src/infrastructure/api/routes.py:78-156):
+    - POST /v1/inventory/{product_id}/reserve endpoint
+    - Request validation via Pydantic ReserveInventoryRequest schema
+    - Returns OperationResult with success/message/inventory
+    - Error handling:
+        - 404: Product not found
+      - 409 Conflict: Insufficient stock
+      - 422: Invalid request data (Pydantic validation)
+
+  Checkpoint Reached:
+  ✅ User Stories 1 AND 2 both work independently
+  - User Story 1: Check Inventory (GET endpoint) - 15 tests passing
+  - User Story 2: Reserve Inventory (POST endpoint) - 11 tests passing
+
+  Progress:
+  - Total tasks completed: 40 out of 92
+    - Phase 1 (Setup): 15 tasks ✅
+    - Phase 2 (Foundational): 13 tasks ✅
+    - Phase 3 (User Story 1): 10 tasks ✅
+    - Phase 4 (User Story 2): 12 tasks ✅
+  - Remaining tasks: 52 tasks across Phases 5-8
+
+  Next Steps:
+  Phase 5: User Story 3 - Release Reserved Inventory (Priority P2)
+  - Tasks T048-T057 (10 tasks)
+  - Implements releasing reserved inventory back to available pool
+  - Verifies reserve-then-release workflows
+
+
+/speckit.implement Phase 5
+
+● Phase 5 Complete - User Story 3 (Release Reserved Inventory)
+
+  Phase 5 implementation is complete! All 10 tasks (T048-T057) have been successfully implemented and tested following Test-Driven Development (TDD) principles.
+
+  Summary
+
+  Implemented Features:
+  - User Story 3: Release Reserved Inventory (Priority P2)
+  - POST /v1/inventory/{product_id}/release API endpoint
+  - Release reserved inventory back to available pool
+  - Complete reserve-then-release workflow validation
+  - Event emission for InventoryReleased events
+
+  Files Modified:
+  1. src/domain/inventory.py - Added release() method (lines 96-132)
+  2. src/application/inventory_service.py - Added release_inventory() method (lines 98-139)
+  3. src/infrastructure/api/routes.py - Added POST release endpoint (lines 159-229)
+  4. tests/unit/test_inventory_aggregate.py - Added TestInventoryRelease class (5 tests)
+  5. tests/integration/test_inventory_workflows.py - Added TestReleaseInventoryWorkflow class (3 tests, including full workflow)
+  6. tests/contract/test_inventory_api.py - Added TestReleaseInventoryEndpoint class (4 tests)
+
+  Test Results:
+  - ✅ 38/38 tests passing (Phase 3 + Phase 4 + Phase 5)
+  - ✅ Unit tests: 19 passed (9 + 5 + 5)
+  - ✅ Integration tests: 8 passed (3 + 2 + 3)
+  - ✅ Contract tests: 11 passed (3 + 4 + 4)
+  - ✅ Code coverage: 80% overall (up from 79%)
+
+  Key Implementation Details:
+
+  1. Domain Layer (src/domain/inventory.py:96-132):
+    - release(quantity) method validates and decreases reserved quantity
+    - Raises InvalidQuantityError for non-positive quantities
+    - Raises InvalidQuantityError when quantity > reserved
+    - Emits InventoryReleased domain event
+    - Re-validates invariants after mutation
+  2. Application Layer (src/application/inventory_service.py:98-139):
+    - release_inventory() uses for_update=True for row locking
+    - Accepts reason parameter for audit trail
+    - Calls domain method, persists changes, publishes events
+    - Atomic transaction with SELECT FOR UPDATE
+  3. API Layer (src/infrastructure/api/routes.py:159-229):
+    - POST /v1/inventory/{product_id}/release endpoint
+    - Request validation via Pydantic ReleaseInventoryRequest schema (includes reason)
+    - Returns OperationResult with success/message/inventory
+    - Error handling:
+        - 404: Product not found
+      - 422: Invalid request data or quantity exceeds reserved
+
+  Checkpoint Reached:
+  ✅ User Stories 1, 2, AND 3 all work independently
+  - User Story 1: Check Inventory (GET endpoint) - 15 tests passing
+  - User Story 2: Reserve Inventory (POST endpoint) - 11 tests passing
+  - User Story 3: Release Inventory (POST endpoint) - 12 tests passing
+
+  Progress:
+  - Total tasks completed: 50 out of 92
+    - Phase 1 (Setup): 15 tasks ✅
+    - Phase 2 (Foundational): 13 tasks ✅
+    - Phase 3 (User Story 1): 10 tasks ✅
+    - Phase 4 (User Story 2): 12 tasks ✅
+    - Phase 5 (User Story 3): 10 tasks ✅
+  - Remaining tasks: 42 tasks across Phases 6-8
+
+  Next Steps:
+  Phase 6: User Story 4 - Adjust Inventory Levels (Priority P2)
+  - Tasks T058-T068 (11 tasks)
+  - Implements manual inventory adjustments for physical stock counts
+  - Handles both increases and decreases with validation

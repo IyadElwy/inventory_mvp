@@ -5,7 +5,7 @@ Tests the domain logic in isolation without external dependencies.
 import pytest
 from src.domain.inventory import Inventory
 from src.domain.exceptions import InvalidQuantityError, InsufficientStockError
-from src.domain.events import InventoryReserved
+from src.domain.events import InventoryReserved, InventoryReleased
 
 
 class TestInventoryCreation:
@@ -183,3 +183,77 @@ class TestInventoryReserve:
 
         with pytest.raises(InvalidQuantityError, match="Quantity must be positive"):
             inventory.reserve(0)
+
+
+class TestInventoryRelease:
+    """Test Inventory.release() method"""
+
+    def test_release_with_valid_quantity(self):
+        """T048: Release reserved inventory successfully"""
+        inventory = Inventory(
+            product_id="PROD-015",
+            total_quantity=100,
+            reserved_quantity=40,
+            minimum_stock_level=10
+        )
+
+        events = inventory.release(20)
+
+        assert inventory.reserved_quantity == 20
+        assert inventory.available_quantity == 80
+        assert len(events) == 1
+        assert isinstance(events[0], InventoryReleased)
+        assert events[0].product_id == "PROD-015"
+        assert events[0].quantity == 20
+
+    def test_release_with_quantity_exceeding_reserved(self):
+        """T049: Release quantity exceeding reserved raises error"""
+        inventory = Inventory(
+            product_id="PROD-016",
+            total_quantity=100,
+            reserved_quantity=30,
+            minimum_stock_level=10
+        )
+
+        with pytest.raises(InvalidQuantityError, match="Cannot release 50.*Only 30 reserved"):
+            inventory.release(50)
+
+    def test_release_emits_inventory_released_event(self):
+        """T050: Release inventory emits InventoryReleased event"""
+        inventory = Inventory(
+            product_id="PROD-017",
+            total_quantity=100,
+            reserved_quantity=50,
+            minimum_stock_level=10
+        )
+
+        events = inventory.release(25)
+
+        assert len(events) == 1
+        event = events[0]
+        assert isinstance(event, InventoryReleased)
+        assert event.product_id == "PROD-017"
+        assert event.quantity == 25
+        assert event.timestamp is not None
+
+    def test_release_with_negative_quantity_raises_error(self):
+        """T049: Release with negative quantity raises error"""
+        inventory = Inventory(
+            product_id="PROD-018",
+            total_quantity=100,
+            reserved_quantity=50
+        )
+
+        with pytest.raises(InvalidQuantityError, match="Quantity must be positive"):
+            inventory.release(-10)
+
+    def test_release_with_zero_quantity_raises_error(self):
+        """T049: Release with zero quantity raises error"""
+        inventory = Inventory(
+            product_id="PROD-019",
+            total_quantity=100,
+            reserved_quantity=50
+        )
+
+        with pytest.raises(InvalidQuantityError, match="Quantity must be positive"):
+            inventory.release(0)

@@ -129,19 +129,19 @@
 
 ### Tests for User Story 3 (TDD - Write FIRST)
 
-- [ ] T048 [P] [US3] Write unit test for Inventory.release() success case in tests/unit/test_inventory_aggregate.py
-- [ ] T049 [P] [US3] Write unit test for Inventory.release() with quantity exceeding reserved in tests/unit/test_inventory_aggregate.py
-- [ ] T050 [P] [US3] Write unit test for Inventory.release() emitting InventoryReleased event in tests/unit/test_inventory_aggregate.py
-- [ ] T051 [P] [US3] Write integration test for release workflow in tests/integration/test_inventory_workflows.py
-- [ ] T052 [P] [US3] Write contract test for POST /v1/inventory/{product_id}/release endpoint in tests/contract/test_inventory_api.py
+- [x] T048 [P] [US3] Write unit test for Inventory.release() success case in tests/unit/test_inventory_aggregate.py
+- [x] T049 [P] [US3] Write unit test for Inventory.release() with quantity exceeding reserved in tests/unit/test_inventory_aggregate.py
+- [x] T050 [P] [US3] Write unit test for Inventory.release() emitting InventoryReleased event in tests/unit/test_inventory_aggregate.py
+- [x] T051 [P] [US3] Write integration test for release workflow in tests/integration/test_inventory_workflows.py
+- [x] T052 [P] [US3] Write contract test for POST /v1/inventory/{product_id}/release endpoint in tests/contract/test_inventory_api.py
 
 ### Implementation for User Story 3
 
-- [ ] T053 [US3] Implement Inventory.release(quantity) method in src/domain/inventory.py (validate against reserved_quantity, update, return events)
-- [ ] T054 [US3] Implement InventoryService.release_inventory method in src/application/inventory_service.py (get with lock, call release, save, publish events)
-- [ ] T055 [US3] Implement POST /v1/inventory/{product_id}/release endpoint in src/infrastructure/api/routes.py (parse request with reason, call service)
-- [ ] T056 [US3] Add error handling for invalid release quantity in src/infrastructure/api/routes.py
-- [ ] T057 [US3] Run all User Story 3 tests and verify they pass
+- [x] T053 [US3] Implement Inventory.release(quantity) method in src/domain/inventory.py (validate against reserved_quantity, update, return events)
+- [x] T054 [US3] Implement InventoryService.release_inventory method in src/application/inventory_service.py (get with lock, call release, save, publish events)
+- [x] T055 [US3] Implement POST /v1/inventory/{product_id}/release endpoint in src/infrastructure/api/routes.py (parse request with reason, call service)
+- [x] T056 [US3] Add error handling for invalid release quantity in src/infrastructure/api/routes.py
+- [x] T057 [US3] Run all User Story 3 tests and verify they pass
 
 **Checkpoint**: At this point, User Stories 1, 2, AND 3 should all work independently
 
