@@ -47,19 +47,19 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T015 [P] Create domain exceptions in src/domain/exceptions.py (InventoryDomainError, InvalidQuantityError, InsufficientStockError, InventoryNotFoundError)
-- [ ] T016 [P] Define domain events in src/domain/events.py (InventoryEvent protocol, InventoryReserved, InventoryReleased, InventoryAdjusted, LowStockDetected)
-- [ ] T017 [P] Define domain commands in src/domain/commands.py (ReserveInventory, ReleaseInventory, AdjustInventory)
-- [ ] T018 [P] Create EventPublisher interface in src/application/event_publisher.py (abstract base class)
-- [ ] T019 [P] Implement LocalEventPublisher in src/infrastructure/events/local_publisher.py (in-memory event publisher)
-- [ ] T020 Create SQLAlchemy models in src/infrastructure/database/models.py (InventoryModel with to_domain/from_domain methods, EventLogModel)
-- [ ] T021 Create database session management in src/infrastructure/database/session.py (get_db dependency, engine creation)
-- [ ] T021a Create database initialization script in src/infrastructure/database/init_db.py (create tables using SQLAlchemy metadata.create_all)
-- [ ] T021b Create Alembic configuration for migrations (alembic.ini, alembic/env.py, initial migration)
-- [ ] T022 Create repository interface and implementation in src/infrastructure/database/repository.py (InventoryRepository with get, save, find_low_stock methods using SELECT FOR UPDATE)
-- [ ] T023 Create Pydantic schemas in src/infrastructure/api/schemas.py (all request/response models from contracts/openapi.yaml)
-- [ ] T024 Setup FastAPI app initialization in src/main.py (create app, include routers, CORS middleware, call init_db on startup event)
-- [ ] T025 Create dependency injection helpers in src/infrastructure/api/dependencies.py (get_repository, get_event_publisher)
+- [x] T015 [P] Create domain exceptions in src/domain/exceptions.py (InventoryDomainError, InvalidQuantityError, InsufficientStockError, InventoryNotFoundError)
+- [x] T016 [P] Define domain events in src/domain/events.py (InventoryEvent protocol, InventoryReserved, InventoryReleased, InventoryAdjusted, LowStockDetected)
+- [x] T017 [P] Define domain commands in src/domain/commands.py (ReserveInventory, ReleaseInventory, AdjustInventory)
+- [x] T018 [P] Create EventPublisher interface in src/application/event_publisher.py (abstract base class)
+- [x] T019 [P] Implement LocalEventPublisher in src/infrastructure/events/local_publisher.py (in-memory event publisher)
+- [x] T020 Create SQLAlchemy models in src/infrastructure/database/models.py (InventoryModel with to_domain/from_domain methods, EventLogModel)
+- [x] T021 Create database session management in src/infrastructure/database/session.py (get_db dependency, engine creation)
+- [x] T021a Create database initialization script in src/infrastructure/database/init_db.py (create tables using SQLAlchemy metadata.create_all)
+- [x] T021b Create Alembic configuration for migrations (alembic.ini, alembic/env.py, initial migration)
+- [x] T022 Create repository interface and implementation in src/infrastructure/database/repository.py (InventoryRepository with get, save, find_low_stock methods using SELECT FOR UPDATE)
+- [x] T023 Create Pydantic schemas in src/infrastructure/api/schemas.py (all request/response models from contracts/openapi.yaml)
+- [x] T024 Setup FastAPI app initialization in src/main.py (create app, include routers, CORS middleware, call init_db on startup event)
+- [x] T025 Create dependency injection helpers in src/infrastructure/api/dependencies.py (get_repository, get_event_publisher)
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -75,19 +75,19 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T026 [P] [US1] Write unit test for Inventory aggregate creation with valid data in tests/unit/test_inventory_aggregate.py
-- [ ] T027 [P] [US1] Write unit test for Inventory aggregate invariant validation (negative quantities, reserved > total) in tests/unit/test_inventory_aggregate.py
-- [ ] T028 [P] [US1] Write unit test for available_quantity property calculation in tests/unit/test_inventory_aggregate.py
-- [ ] T029 [P] [US1] Write integration test for querying inventory via service in tests/integration/test_inventory_workflows.py
-- [ ] T030 [P] [US1] Write contract test for GET /v1/inventory/{product_id} endpoint in tests/contract/test_inventory_api.py
+- [x] T026 [P] [US1] Write unit test for Inventory aggregate creation with valid data in tests/unit/test_inventory_aggregate.py
+- [x] T027 [P] [US1] Write unit test for Inventory aggregate invariant validation (negative quantities, reserved > total) in tests/unit/test_inventory_aggregate.py
+- [x] T028 [P] [US1] Write unit test for available_quantity property calculation in tests/unit/test_inventory_aggregate.py
+- [x] T029 [P] [US1] Write integration test for querying inventory via service in tests/integration/test_inventory_workflows.py
+- [x] T030 [P] [US1] Write contract test for GET /v1/inventory/{product_id} endpoint in tests/contract/test_inventory_api.py
 
 ### Implementation for User Story 1
 
-- [ ] T031 [US1] Implement Inventory aggregate in src/domain/inventory.py (dataclass with product_id, total_quantity, reserved_quantity, minimum_stock_level, available_quantity property, __post_init__ validation)
-- [ ] T032 [US1] Implement InventoryService.get_inventory method in src/application/inventory_service.py (retrieve from repository, return inventory status)
-- [ ] T033 [US1] Implement GET /v1/inventory/{product_id} endpoint in src/infrastructure/api/routes.py (query service, return InventoryResponse or 404)
-- [ ] T034 [US1] Add error handling for InventoryNotFound in src/infrastructure/api/routes.py (convert domain exceptions to HTTP responses)
-- [ ] T035 [US1] Run all User Story 1 tests and verify they pass
+- [x] T031 [US1] Implement Inventory aggregate in src/domain/inventory.py (dataclass with product_id, total_quantity, reserved_quantity, minimum_stock_level, available_quantity property, __post_init__ validation)
+- [x] T032 [US1] Implement InventoryService.get_inventory method in src/application/inventory_service.py (retrieve from repository, return inventory status)
+- [x] T033 [US1] Implement GET /v1/inventory/{product_id} endpoint in src/infrastructure/api/routes.py (query service, return InventoryResponse or 404)
+- [x] T034 [US1] Add error handling for InventoryNotFound in src/infrastructure/api/routes.py (convert domain exceptions to HTTP responses)
+- [x] T035 [US1] Run all User Story 1 tests and verify they pass
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
 
