@@ -31,7 +31,31 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+**Domain-Driven Design Compliance**:
+- [ ] Feature clearly defines aggregates and their consistency boundaries
+- [ ] Commands and events are identified for state changes
+- [ ] Read models are separated from write models where appropriate
+- [ ] External systems identified and isolated
+
+**Modular Architecture Compliance**:
+- [ ] Module boundaries are clear and independently testable
+- [ ] Dependencies flow inward (infrastructure → application → domain)
+- [ ] Cross-module communication uses explicit interfaces
+
+**Test-First Development Compliance**:
+- [ ] Test strategy defined (unit, integration, contract tests)
+- [ ] Tests will be written BEFORE implementation
+- [ ] Mock strategy for external dependencies documented
+
+**Technology Standards Compliance**:
+- [ ] Uses Python 3.12 + FastAPI + SQLite + SQLAlchemy
+- [ ] pytest and unittest.mock for testing
+- [ ] Docker containerization planned
+
+**API Contract Discipline**:
+- [ ] API contracts defined with Pydantic models
+- [ ] Request/response validation strategy documented
+- [ ] Error handling approach defined
 
 ## Project Structure
 
