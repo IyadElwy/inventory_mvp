@@ -51,3 +51,46 @@ class InventoryService:
 
         logger.info(f"Found inventory for {product_id}: available={inventory.available_quantity}")
         return inventory
+
+    def reserve_inventory(self, product_id: str, quantity: int, order_id: str) -> Inventory:
+        """
+        Reserve inventory for an order atomically.
+
+        Args:
+            product_id: Product identifier
+            quantity: Quantity to reserve
+            order_id: Order ID for idempotency
+
+        Returns:
+            Updated inventory aggregate
+
+        Raises:
+            InventoryNotFoundError: If product not found
+            InsufficientStockError: If not enough available stock
+            InvalidQuantityError: If quantity is invalid
+        """
+        logger.info(f"Reserving {quantity} units of {product_id} for order {order_id}")
+
+        # Get inventory with row lock to prevent concurrent modifications
+        inventory = self.repository.get(product_id, for_update=True)
+
+        if inventory is None:
+            logger.warning(f"Product not found: {product_id}")
+            raise InventoryNotFoundError(f"Product {product_id} not found in inventory")
+
+        # Call domain method to reserve (validates and emits events)
+        events = inventory.reserve(quantity)
+
+        # Persist changes
+        self.repository.save(inventory)
+
+        # Publish events
+        for event in events:
+            self.event_publisher.publish(event)
+
+        logger.info(
+            f"Reserved {quantity} units of {product_id}. "
+            f"New reserved: {inventory.reserved_quantity}, available: {inventory.available_quantity}"
+        )
+
+        return inventory

@@ -102,3 +102,84 @@ class TestGetInventoryEndpoint:
             "available_quantity", "minimum_stock_level"
         }
         assert set(data.keys()) == expected_fields
+
+
+class TestReserveInventoryEndpoint:
+    """T041: Test POST /v1/inventory/{product_id}/reserve endpoint contract"""
+
+    def test_reserve_inventory_success(self, client, setup_test_inventory, db_session):
+        """POST reserve inventory returns correct schema with 200"""
+        # Arrange: Setup request payload
+        request_data = {
+            "quantity": 20,
+            "order_id": "ORDER-TEST-001"
+        }
+
+        # Act: Call API endpoint
+        response = client.post("/v1/inventory/PROD-API-001/reserve", json=request_data)
+
+        # Assert: Status code and response schema
+        assert response.status_code == 200
+
+        data = response.json()
+        assert "success" in data
+        assert "message" in data
+        assert "inventory" in data
+
+        assert data["success"] is True
+
+        # Verify inventory state
+        inventory = data["inventory"]
+        assert inventory["product_id"] == "PROD-API-001"
+        assert inventory["reserved_quantity"] == 50  # 30 + 20
+        assert inventory["available_quantity"] == 100  # 150 - 20
+
+    def test_reserve_inventory_insufficient_stock(self, client, setup_test_inventory):
+        """POST reserve with insufficient stock returns 409"""
+        # Arrange: Try to reserve more than available
+        request_data = {
+            "quantity": 200,
+            "order_id": "ORDER-TEST-002"
+        }
+
+        # Act: Call API endpoint
+        response = client.post("/v1/inventory/PROD-API-001/reserve", json=request_data)
+
+        # Assert: 409 Conflict status code
+        assert response.status_code == 409
+
+        data = response.json()
+        assert "detail" in data
+        assert "Cannot reserve" in data["detail"]
+
+    def test_reserve_inventory_product_not_found(self, client):
+        """POST reserve for non-existent product returns 404"""
+        # Arrange: Valid request for non-existent product
+        request_data = {
+            "quantity": 10,
+            "order_id": "ORDER-TEST-003"
+        }
+
+        # Act: Call API with non-existent product
+        response = client.post("/v1/inventory/PROD-NONEXISTENT/reserve", json=request_data)
+
+        # Assert: 404 status code
+        assert response.status_code == 404
+
+        data = response.json()
+        assert "detail" in data
+        assert "PROD-NONEXISTENT" in data["detail"]
+
+    def test_reserve_inventory_invalid_quantity(self, client, setup_test_inventory):
+        """POST reserve with invalid quantity returns 422"""
+        # Arrange: Negative quantity
+        request_data = {
+            "quantity": -10,
+            "order_id": "ORDER-TEST-004"
+        }
+
+        # Act: Call API endpoint
+        response = client.post("/v1/inventory/PROD-API-001/reserve", json=request_data)
+
+        # Assert: 422 Validation Error
+        assert response.status_code == 422

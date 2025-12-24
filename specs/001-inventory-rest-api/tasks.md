@@ -101,21 +101,21 @@
 
 ### Tests for User Story 2 (TDD - Write FIRST)
 
-- [ ] T036 [P] [US2] Write unit test for Inventory.reserve() success case in tests/unit/test_inventory_aggregate.py
-- [ ] T037 [P] [US2] Write unit test for Inventory.reserve() with insufficient stock in tests/unit/test_inventory_aggregate.py
-- [ ] T038 [P] [US2] Write unit test for Inventory.reserve() emitting InventoryReserved event in tests/unit/test_inventory_aggregate.py
-- [ ] T039 [P] [US2] Write unit test for Inventory.reserve() with negative/zero quantity in tests/unit/test_inventory_aggregate.py
-- [ ] T040 [P] [US2] Write integration test for reserve workflow with event emission in tests/integration/test_inventory_workflows.py
-- [ ] T041 [P] [US2] Write contract test for POST /v1/inventory/{product_id}/reserve endpoint in tests/contract/test_inventory_api.py
+- [x] T036 [P] [US2] Write unit test for Inventory.reserve() success case in tests/unit/test_inventory_aggregate.py
+- [x] T037 [P] [US2] Write unit test for Inventory.reserve() with insufficient stock in tests/unit/test_inventory_aggregate.py
+- [x] T038 [P] [US2] Write unit test for Inventory.reserve() emitting InventoryReserved event in tests/unit/test_inventory_aggregate.py
+- [x] T039 [P] [US2] Write unit test for Inventory.reserve() with negative/zero quantity in tests/unit/test_inventory_aggregate.py
+- [x] T040 [P] [US2] Write integration test for reserve workflow with event emission in tests/integration/test_inventory_workflows.py
+- [x] T041 [P] [US2] Write contract test for POST /v1/inventory/{product_id}/reserve endpoint in tests/contract/test_inventory_api.py
 
 ### Implementation for User Story 2
 
-- [ ] T042 [US2] Implement Inventory.reserve(quantity) method in src/domain/inventory.py (validate, update reserved_quantity, return events list)
-- [ ] T043 [US2] Implement InventoryService.reserve_inventory method in src/application/inventory_service.py (get with lock, call reserve, save, publish events)
-- [ ] T044 [US2] Implement POST /v1/inventory/{product_id}/reserve endpoint in src/infrastructure/api/routes.py (parse request, call service, return OperationResult or errors)
-- [ ] T045 [US2] Add error handling for InsufficientStock (409 Conflict) in src/infrastructure/api/routes.py
-- [ ] T046 [US2] Implement event publishing in InventoryService for InventoryReserved events
-- [ ] T047 [US2] Run all User Story 2 tests and verify they pass
+- [x] T042 [US2] Implement Inventory.reserve(quantity) method in src/domain/inventory.py (validate, update reserved_quantity, return events list)
+- [x] T043 [US2] Implement InventoryService.reserve_inventory method in src/application/inventory_service.py (get with lock, call reserve, save, publish events)
+- [x] T044 [US2] Implement POST /v1/inventory/{product_id}/reserve endpoint in src/infrastructure/api/routes.py (parse request, call service, return OperationResult or errors)
+- [x] T045 [US2] Add error handling for InsufficientStock (409 Conflict) in src/infrastructure/api/routes.py
+- [x] T046 [US2] Implement event publishing in InventoryService for InventoryReserved events
+- [x] T047 [US2] Run all User Story 2 tests and verify they pass
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently
 

@@ -4,7 +4,8 @@ Tests the domain logic in isolation without external dependencies.
 """
 import pytest
 from src.domain.inventory import Inventory
-from src.domain.exceptions import InvalidQuantityError
+from src.domain.exceptions import InvalidQuantityError, InsufficientStockError
+from src.domain.events import InventoryReserved
 
 
 class TestInventoryCreation:
@@ -108,3 +109,77 @@ class TestAvailableQuantityCalculation:
         )
 
         assert inventory.available_quantity == 0
+
+
+class TestInventoryReserve:
+    """Test Inventory.reserve() method"""
+
+    def test_reserve_with_sufficient_stock(self):
+        """T036: Reserve inventory with sufficient available stock"""
+        inventory = Inventory(
+            product_id="PROD-010",
+            total_quantity=100,
+            reserved_quantity=20,
+            minimum_stock_level=10
+        )
+
+        events = inventory.reserve(30)
+
+        assert inventory.reserved_quantity == 50
+        assert inventory.available_quantity == 50
+        assert len(events) == 1
+        assert isinstance(events[0], InventoryReserved)
+        assert events[0].product_id == "PROD-010"
+        assert events[0].quantity == 30
+
+    def test_reserve_with_insufficient_stock(self):
+        """T037: Reserve inventory with insufficient stock raises error"""
+        inventory = Inventory(
+            product_id="PROD-011",
+            total_quantity=100,
+            reserved_quantity=90,
+            minimum_stock_level=10
+        )
+
+        with pytest.raises(InsufficientStockError, match="Cannot reserve 20.*Only 10 available"):
+            inventory.reserve(20)
+
+    def test_reserve_emits_inventory_reserved_event(self):
+        """T038: Reserve inventory emits InventoryReserved event"""
+        inventory = Inventory(
+            product_id="PROD-012",
+            total_quantity=100,
+            reserved_quantity=0,
+            minimum_stock_level=10
+        )
+
+        events = inventory.reserve(25)
+
+        assert len(events) == 1
+        event = events[0]
+        assert isinstance(event, InventoryReserved)
+        assert event.product_id == "PROD-012"
+        assert event.quantity == 25
+        assert event.timestamp is not None
+
+    def test_reserve_with_negative_quantity_raises_error(self):
+        """T039: Reserve with negative quantity raises error"""
+        inventory = Inventory(
+            product_id="PROD-013",
+            total_quantity=100,
+            reserved_quantity=0
+        )
+
+        with pytest.raises(InvalidQuantityError, match="Quantity must be positive"):
+            inventory.reserve(-5)
+
+    def test_reserve_with_zero_quantity_raises_error(self):
+        """T039: Reserve with zero quantity raises error"""
+        inventory = Inventory(
+            product_id="PROD-014",
+            total_quantity=100,
+            reserved_quantity=0
+        )
+
+        with pytest.raises(InvalidQuantityError, match="Quantity must be positive"):
+            inventory.reserve(0)

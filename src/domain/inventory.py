@@ -4,7 +4,8 @@ Represents the core inventory business logic with validation and invariants.
 """
 from dataclasses import dataclass, field
 from typing import List, Any
-from src.domain.exceptions import InvalidQuantityError
+from src.domain.exceptions import InvalidQuantityError, InsufficientStockError
+from src.domain.events import InventoryReserved
 
 
 @dataclass
@@ -52,3 +53,42 @@ class Inventory:
         Available = Total - Reserved
         """
         return self.total_quantity - self.reserved_quantity
+
+    def reserve(self, quantity: int) -> List[Any]:
+        """
+        Reserve inventory for an order.
+
+        Args:
+            quantity: Amount to reserve (must be positive)
+
+        Returns:
+            List of domain events emitted
+
+        Raises:
+            InvalidQuantityError: If quantity is not positive
+            InsufficientStockError: If not enough available stock
+        """
+        # Validate quantity
+        if quantity <= 0:
+            raise InvalidQuantityError("Quantity must be positive")
+
+        # Check available stock
+        if quantity > self.available_quantity:
+            raise InsufficientStockError(
+                f"Cannot reserve {quantity} units of product {self.product_id}. "
+                f"Only {self.available_quantity} available."
+            )
+
+        # Update reserved quantity
+        self.reserved_quantity += quantity
+
+        # Re-validate invariants after mutation
+        self._validate_invariants()
+
+        # Emit domain event
+        event = InventoryReserved(
+            product_id=self.product_id,
+            quantity=quantity
+        )
+
+        return [event]
