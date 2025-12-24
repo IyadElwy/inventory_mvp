@@ -32,7 +32,7 @@ runs claude
 claude
 ```
 
-3. /speckit.constitution We are building a microservice for inventory management. It should be based on Domain Driven Design principles. The Domain Model uses these Elements Aggregate, External System, Read Model, Command, Event, Policy, User. It should have a modular project strucutre. It should use the latest stable version of Fastapi with python 3.12. For the database use sqlite with sqlalchemy as ORM. Write unit tests using pytest as well as mocks with unittest.mock. In the end, the whole application should run in a docker container, so we will need a Dockerfile. 
+3. /speckit.constitution We are building a microservice for inventory management. It should be based on Domain Driven Design principles. The Domain Model uses these Elements Aggregate, External System, Read Model, Command, Event, Policy, User.
 
 ->   
 Constitution Created Successfully
@@ -82,3 +82,7 @@ Constitution Created Successfully
 
 
 4. Manuelles checken vom constitution.md und plan-template.md
+
+5. Zu detailliert im constitution file: Technisches soll da nicht drin sein. Lass uns lieber eine neue constitution.md file generieren
+
+3. /speckit.constitution We are building a microservice for inventory management. It should be based on Domain Driven Design principles. The Domain Model uses these Elements Aggregate, External System, Read Model, Command, Event, Policy, User.
