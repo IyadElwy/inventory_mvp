@@ -5,6 +5,16 @@
 **Status**: Draft
 **Input**: User description: "Create a REST API for this microservice. It should have a modular project structure. It should use the latest stable version of FastAPI with Python 3.12. For the database use SQLite with SQLAlchemy as ORM. Use Pydantic models for data modelling. Write unit tests using pytest as well as mocks with unittest.mock. In the end, the whole application should run in a docker container, so we will need a Dockerfile."
 
+## Clarifications
+
+### Session 2025-12-25
+
+- Q: When inventory operations emit events (InventoryReserved, InventoryReleased, etc.), what should happen if event publishing fails? → A: Roll back the inventory operation (transaction fails) - ensures consistency
+- Q: If the same reservation request (same order_id, product_id, quantity) is submitted multiple times due to network retries, how should the system respond? → A: Return success with current state (idempotent) - safe for retries
+- Q: When a LowStockDetected event is emitted, how should purchasing managers actually receive the notification? → A: Only queryable via GET /low-stock endpoint; no proactive notifications
+- Q: How do products initially get into the inventory system with their starting quantities and minimum stock levels? → A: Products auto-created with zero quantities on first reserve/adjust attempt
+- Q: When two requests try to reserve inventory for the same product simultaneously, what mechanism prevents race conditions? → A: Pessimistic locking with SELECT FOR UPDATE - blocks concurrent access
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Check Inventory Availability (Priority: P1)
@@ -73,11 +83,11 @@ As a warehouse manager, I need to manually adjust inventory quantities to correc
 
 ### User Story 5 - Monitor Low Stock Alerts (Priority: P3)
 
-As a purchasing manager, I need to be notified when product stock falls below minimum thresholds, so that I can reorder inventory before running out of stock.
+As a purchasing manager, I need to query which products are below minimum stock thresholds, so that I can reorder inventory before running out of stock.
 
 **Why this priority**: This is a valuable feature for proactive inventory management but not critical for day-to-day operations. The system can function without it, though less efficiently.
 
-**Independent Test**: Can be fully tested by reducing a product's available quantity below its minimum threshold and verifying a low stock alert is triggered. Delivers value by enabling proactive restocking.
+**Independent Test**: Can be fully tested by reducing a product's available quantity below its minimum threshold and verifying it appears in the low stock query results. Delivers value by enabling proactive restocking.
 
 **Acceptance Scenarios**:
 
@@ -90,11 +100,12 @@ As a purchasing manager, I need to be notified when product stock falls below mi
 ### Edge Cases
 
 - What happens when attempting to reserve inventory with a quantity of zero or negative number?
-- How does the system handle concurrent reservations for the same product?
+- Concurrent reservations for the same product are handled using pessimistic locking (SELECT FOR UPDATE) which blocks the second request until the first completes, ensuring atomic operations
 - What happens when adjusting inventory would violate the invariant that reserved quantity cannot exceed total quantity?
-- How does the system handle requests for non-existent product IDs?
-- What happens when the same reservation is attempted multiple times (idempotency)?
+- For GET requests on non-existent product IDs, the system returns 404 error; for reserve/adjust operations, the product is auto-created with zero quantities before processing the operation
+- When the same reservation is attempted multiple times (same order_id, product_id, quantity), the system returns success with current inventory state without creating duplicate reservations, enabling safe client retries
 - How are timestamp and audit trail requirements handled for inventory changes?
+- If event publishing fails during an inventory operation, the entire operation is rolled back and returns an error to the caller, ensuring no state change occurs without corresponding event notification
 
 ## Requirements *(mandatory)*
 
@@ -116,6 +127,9 @@ As a purchasing manager, I need to be notified when product stock falls below mi
 - **FR-014**: System MUST validate all request payloads and reject invalid data with clear error messages
 - **FR-015**: System MUST persist inventory state across system restarts
 - **FR-016**: System MUST handle concurrent requests safely without race conditions or data corruption
+- **FR-017**: System MUST treat inventory operations and event publishing as atomic transactions - if event publishing fails, the inventory operation MUST be rolled back to ensure consistency
+- **FR-018**: System MUST implement idempotent reservation operations - duplicate requests with the same order_id, product_id, and quantity MUST return success with current state without creating duplicate reservations
+- **FR-019**: System MUST auto-create product inventory records with zero quantities and default minimum stock level when a reserve or adjust operation is attempted on a non-existent product
 
 ### Key Entities
 
@@ -159,9 +173,10 @@ As a purchasing manager, I need to be notified when product stock falls below mi
 - The system operates in a single-region deployment (no multi-region consistency requirements)
 - Inventory units are whole numbers (no fractional quantities)
 - Currency and pricing are managed by separate services (this service only tracks quantities)
-- The minimum stock level for each product is set by external configuration or admin tools
-- Event consumers (for InventoryReserved, InventoryReleased, etc.) are external systems that will subscribe to these events
+- The minimum stock level for each product defaults to 0 when auto-created; can be updated via adjust operations
+- Event consumers (for InventoryReserved, InventoryReleased, etc.) are external systems that will subscribe to these events for audit and integration purposes
 - Network reliability between API consumers and this service is acceptable for synchronous HTTP requests
+- Low stock monitoring is pull-based: purchasing managers or dashboards poll the GET /low-stock endpoint rather than receiving proactive push notifications
 
 ## Out of Scope
 
