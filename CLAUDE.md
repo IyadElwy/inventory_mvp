@@ -3,6 +3,8 @@
 Auto-generated from all feature plans. Last updated: 2025-12-24
 
 ## Active Technologies
+- Python 3.12 + FastAPI 0.109.0, SQLAlchemy 2.0.25, Pydantic 2.5.3 (002-create-inventory-item)
+- SQLite (development), SQLAlchemy-compatible SQL database (production) (002-create-inventory-item)
 
 - Python 3.12 + FastAPI (latest stable), SQLAlchemy, Pydantic (001-inventory-rest-api)
 
@@ -22,6 +24,7 @@ cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLO
 Python 3.12: Follow standard conventions
 
 ## Recent Changes
+- 002-create-inventory-item: Added Python 3.12 + FastAPI 0.109.0, SQLAlchemy 2.0.25, Pydantic 2.5.3
 
 - 001-inventory-rest-api: Added Python 3.12 + FastAPI (latest stable), SQLAlchemy, Pydantic
 

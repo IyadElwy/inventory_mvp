@@ -1,0 +1,241 @@
+openapi: 3.0.3
+info:
+  title: Inventory Management API - Create Inventory Item
+  version: 1.0.0
+  description: |
+    API contract for the create inventory item endpoint.
+    This extends the existing /v1/inventory API with creation capability.
+
+    Feature: 002-create-inventory-item
+    Date: 2025-12-25
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+
+paths:
+  /v1/inventory:
+    post:
+      summary: Create new inventory record
+      description: |
+        Creates a new inventory record for a product that doesn't already exist in the system.
+        The product must not have an existing inventory record.
+
+        - Sets total_quantity to initial_quantity
+        - Sets reserved_quantity to 0
+        - Sets available_quantity to initial_quantity
+        - Sets minimum_stock_level as specified
+
+        If initial_quantity < minimum_stock_level, a low stock event is emitted immediately.
+      operationId: createInventory
+      tags:
+        - Inventory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInventoryRequest'
+            examples:
+              normalCreation:
+                summary: Normal creation with sufficient stock
+                value:
+                  product_id: "PROD-12345"
+                  initial_quantity: 100
+                  minimum_stock_level: 10
+              zeroQuantity:
+                summary: Create with zero initial quantity
+                value:
+                  product_id: "PROD-99999"
+                  initial_quantity: 0
+                  minimum_stock_level: 5
+              lowStockCreation:
+                summary: Create with immediate low stock condition
+                value:
+                  product_id: "PROD-55555"
+                  initial_quantity: 5
+                  minimum_stock_level: 20
+      responses:
+        '201':
+          description: Inventory record created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResult'
+              examples:
+                success:
+                  value:
+                    success: true
+                    message: "Successfully created inventory for product PROD-12345"
+                    inventory:
+                      product_id: "PROD-12345"
+                      total_quantity: 100
+                      reserved_quantity: 0
+                      available_quantity: 100
+                      minimum_stock_level: 10
+        '409':
+          description: Conflict - Product already exists in inventory
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                duplicate:
+                  value:
+                    error: "InventoryAlreadyExists"
+                    detail: "Inventory record already exists for product PROD-12345"
+                    timestamp: "2025-12-25T10:30:00Z"
+        '422':
+          description: Validation error - Invalid input data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                negativeQuantity:
+                  value:
+                    detail:
+                      - loc: ["body", "initial_quantity"]
+                        msg: "Input should be greater than or equal to 0"
+                        type: "greater_than_equal"
+                emptyProductId:
+                  value:
+                    detail:
+                      - loc: ["body", "product_id"]
+                        msg: "Product ID cannot be whitespace only"
+                        type: "value_error"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                serverError:
+                  value:
+                    error: "InternalServerError"
+                    detail: "An unexpected error occurred"
+                    timestamp: "2025-12-25T10:30:00Z"
+
+components:
+  schemas:
+    CreateInventoryRequest:
+      type: object
+      required:
+        - product_id
+        - initial_quantity
+        - minimum_stock_level
+      properties:
+        product_id:
+          type: string
+          minLength: 1
+          description: |
+            Unique product identifier. Cannot be empty or whitespace-only.
+            Accepts any non-empty string including special characters and Unicode.
+          example: "PROD-12345"
+        initial_quantity:
+          type: integer
+          minimum: 0
+          description: |
+            Initial stock quantity for the product. Must be non-negative (zero or positive).
+            This becomes the total_quantity and available_quantity of the created record.
+          example: 100
+        minimum_stock_level:
+          type: integer
+          minimum: 0
+          description: |
+            Minimum stock threshold for low stock alerts. Must be non-negative.
+            When available quantity falls below this level, low stock events are emitted.
+          example: 10
+
+    InventoryResponse:
+      type: object
+      required:
+        - product_id
+        - total_quantity
+        - reserved_quantity
+        - available_quantity
+        - minimum_stock_level
+      properties:
+        product_id:
+          type: string
+          description: Unique product identifier
+          example: "PROD-12345"
+        total_quantity:
+          type: integer
+          description: Total physical stock quantity
+          example: 100
+        reserved_quantity:
+          type: integer
+          description: Quantity reserved for orders
+          example: 0
+        available_quantity:
+          type: integer
+          description: Available quantity (total - reserved)
+          example: 100
+        minimum_stock_level:
+          type: integer
+          description: Minimum stock threshold
+          example: 10
+
+    OperationResult:
+      type: object
+      required:
+        - success
+        - message
+        - inventory
+      properties:
+        success:
+          type: boolean
+          description: Whether the operation succeeded
+          example: true
+        message:
+          type: string
+          description: Human-readable success message
+          example: "Successfully created inventory for product PROD-12345"
+        inventory:
+          $ref: '#/components/schemas/InventoryResponse'
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - detail
+        - timestamp
+      properties:
+        error:
+          type: string
+          description: Error type identifier
+          example: "InventoryAlreadyExists"
+        detail:
+          type: string
+          description: Human-readable error message
+          example: "Inventory record already exists for product PROD-12345"
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp when error occurred
+          example: "2025-12-25T10:30:00Z"
+
+    ValidationErrorResponse:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          type: array
+          items:
+            type: object
+            properties:
+              loc:
+                type: array
+                items:
+                  type: string
+                description: Location of the validation error (e.g., ["body", "initial_quantity"])
+              msg:
+                type: string
+                description: Validation error message
+              type:
+                type: string
+                description: Error type identifier
+          description: List of validation errors (FastAPI/Pydantic format)
