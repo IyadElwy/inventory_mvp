@@ -1,16 +1,17 @@
 """
 FastAPI application entry point.
-Initializes the app, middleware, and routes.
+Initializes the app, middleware, and routes using Pydantic Settings.
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
+from src.infrastructure.config import settings
 
-# Configure logging
+# Configure logging from settings
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=getattr(logging, settings.LOG_LEVEL.upper()),
+    format=settings.LOG_FORMAT
 )
 logger = logging.getLogger(__name__)
 
@@ -33,22 +34,28 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down application...")
 
 
-# Create FastAPI app
+# Create FastAPI app using settings
 app = FastAPI(
-    title="Inventory Management API",
+    title=settings.APP_NAME,
     description="REST API for managing inventory reservations, releases, and adjustments",
-    version="1.0.0",
-    lifespan=lifespan
+    version=settings.APP_VERSION,
+    lifespan=lifespan,
+    debug=settings.DEBUG
 )
 
-# Configure CORS
+# Configure CORS from settings
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify actual origins
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=settings.cors_origins_list,
+    allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
+    allow_methods=settings.CORS_ALLOW_METHODS.split(","),
+    allow_headers=settings.CORS_ALLOW_HEADERS.split(","),
 )
+
+# Add request ID tracking middleware
+from src.infrastructure.api.middleware import RequestIDMiddleware, LoggingMiddleware
+app.add_middleware(RequestIDMiddleware)
+app.add_middleware(LoggingMiddleware)
 
 
 # Health check endpoint

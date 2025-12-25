@@ -1,20 +1,17 @@
 """
 Database session management for SQLAlchemy.
-Provides database engine and session creation.
+Provides database engine and session creation using Pydantic Settings.
 """
-import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from typing import Generator
+from src.infrastructure.config import settings
 
-# Get database path from environment or use default
-DATABASE_PATH = os.getenv('DATABASE_PATH', './data/inventory.db')
-
-# Create SQLite engine
+# Create SQLite engine using configuration
 engine = create_engine(
-    f'sqlite:///{DATABASE_PATH}',
+    settings.DATABASE_URL,
     connect_args={"check_same_thread": False},  # Needed for SQLite
-    echo=False  # Set to True for SQL query logging
+    echo=settings.DATABASE_ECHO  # SQL query logging controlled by config
 )
 
 # Create session factory

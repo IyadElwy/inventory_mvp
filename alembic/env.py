@@ -1,10 +1,15 @@
 """
 Alembic migration environment configuration.
 """
+import sys
+from pathlib import Path
 from logging.config import fileConfig
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from alembic import context
+
+# Add project root to Python path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 # Import your models' Base
 from src.infrastructure.database.models import Base

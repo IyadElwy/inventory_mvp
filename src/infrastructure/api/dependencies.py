@@ -4,6 +4,7 @@ Provides database sessions, repositories, and event publishers.
 """
 from typing import Generator
 from sqlalchemy.orm import Session
+from fastapi import Depends
 from src.infrastructure.database.session import get_db
 from src.infrastructure.database.repository import InventoryRepository
 from src.infrastructure.events.local_publisher import LocalEventPublisher
@@ -34,9 +35,9 @@ def get_repository(db: Session = None) -> InventoryRepository:
         return InventoryRepository(db)
 
 
-def get_event_publisher() -> EventPublisher:
+def get_event_publisher(db: Session = Depends(get_db)) -> EventPublisher:
     """
-    Get event publisher instance.
+    Get event publisher instance with database session for event persistence.
 
     Usage in FastAPI:
         @app.post("/inventory/{product_id}/reserve")
@@ -46,11 +47,10 @@ def get_event_publisher() -> EventPublisher:
         ):
             ...
     """
-    return LocalEventPublisher()
+    return LocalEventPublisher(db_session=db)
 
 
 # Convenience functions for FastAPI Depends()
-from fastapi import Depends
 
 
 def get_repo_dependency() -> Generator[InventoryRepository, None, None]:

@@ -29,9 +29,9 @@ def repository(db_session):
 
 
 @pytest.fixture
-def event_publisher():
-    """Create event publisher"""
-    return LocalEventPublisher()
+def event_publisher(db_session):
+    """Create event publisher with database session"""
+    return LocalEventPublisher(db_session=db_session)
 
 
 @pytest.fixture

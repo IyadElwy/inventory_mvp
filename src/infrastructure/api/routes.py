@@ -9,7 +9,7 @@ from src.infrastructure.api.schemas import (
     InventoryResponse, ErrorResponse, ReserveInventoryRequest, ReleaseInventoryRequest,
     AdjustInventoryRequest, OperationResult
 )
-from src.infrastructure.api.dependencies import get_repo_dependency
+from src.infrastructure.api.dependencies import get_repo_dependency, get_event_publisher
 from src.infrastructure.events.local_publisher import LocalEventPublisher
 from src.domain.exceptions import InventoryNotFoundError, InsufficientStockError, InvalidQuantityError
 import logging
@@ -19,9 +19,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1", tags=["Inventory"])
 
 
-def get_inventory_service(repo=Depends(get_repo_dependency)) -> InventoryService:
-    """Dependency injection for InventoryService"""
-    event_publisher = LocalEventPublisher()
+def get_inventory_service(
+    repo=Depends(get_repo_dependency),
+    event_publisher=Depends(get_event_publisher)
+) -> InventoryService:
+    """Dependency injection for InventoryService with event persistence"""
     return InventoryService(repo, event_publisher)
 
 
@@ -350,3 +352,26 @@ def adjust_inventory(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"
         )
+
+
+@router.get(
+    "/health",
+    responses={
+        200: {"description": "Service is healthy"}
+    },
+    tags=["Health"]
+)
+def health_check():
+    """
+    Health check endpoint for monitoring and load balancers.
+
+    Returns:
+        dict: Health status with service name and status
+    """
+    from src.infrastructure.config import settings
+
+    return {
+        "status": "healthy",
+        "service": settings.APP_NAME,
+        "version": settings.APP_VERSION
+    }

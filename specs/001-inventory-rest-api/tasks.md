@@ -206,18 +206,18 @@
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T081 [P] Add comprehensive logging to InventoryService in src/application/inventory_service.py (log all operations with product_id and results)
-- [ ] T082 [P] Implement event log persistence in EventLogModel saves in src/infrastructure/database/repository.py
-- [ ] T083 [P] Add database migration script using Alembic for inventory and event_log tables
-- [ ] T084 [P] Create Dockerfile with multi-stage build (builder stage for dependencies, runtime stage for app)
-- [ ] T085 [P] Add environment configuration using Pydantic Settings in src/infrastructure/config.py
-- [ ] T086 [P] Add health check endpoint GET /health in src/infrastructure/api/routes.py
-- [ ] T087 [P] Configure CORS middleware in src/main.py for cross-origin requests
-- [ ] T088 [P] Add request ID tracking middleware for debugging in src/infrastructure/api/middleware.py
-- [ ] T089 Run full test suite (pytest --cov=src) and verify >90% coverage
-- [ ] T090 Validate quickstart.md manual testing scenarios work end-to-end
-- [ ] T091 Build Docker image and verify container runs successfully
-- [ ] T092 Run performance test for 100 req/sec throughput requirement
+- [x] T081 [P] Add comprehensive logging to InventoryService in src/application/inventory_service.py (log all operations with product_id and results)
+- [x] T082 [P] Implement event log persistence in EventLogModel saves in src/infrastructure/database/repository.py
+- [x] T083 [P] Add database migration script using Alembic for inventory and event_log tables
+- [x] T084 [P] Create Dockerfile with multi-stage build (builder stage for dependencies, runtime stage for app)
+- [x] T085 [P] Add environment configuration using Pydantic Settings in src/infrastructure/config.py
+- [x] T086 [P] Add health check endpoint GET /health in src/infrastructure/api/routes.py
+- [x] T087 [P] Configure CORS middleware in src/main.py for cross-origin requests
+- [x] T088 [P] Add request ID tracking middleware for debugging in src/infrastructure/api/middleware.py
+- [x] T089 Run full test suite (pytest --cov=src) and verify >90% coverage
+- [x] T090 Validate quickstart.md manual testing scenarios work end-to-end
+- [x] T091 Build Docker image and verify container runs successfully
+- [x] T092 Run performance test for 100 req/sec throughput requirement
 
 ---
 
