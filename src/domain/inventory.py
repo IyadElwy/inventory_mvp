@@ -5,7 +5,7 @@ Represents the core inventory business logic with validation and invariants.
 from dataclasses import dataclass, field
 from typing import List, Any
 from src.domain.exceptions import InvalidQuantityError, InsufficientStockError
-from src.domain.events import InventoryReserved, InventoryReleased, InventoryAdjusted
+from src.domain.events import InventoryReserved, InventoryReleased, InventoryAdjusted, LowStockDetected
 
 
 @dataclass
@@ -86,12 +86,20 @@ class Inventory:
         self._validate_invariants()
 
         # Emit domain event
-        event = InventoryReserved(
+        events = [InventoryReserved(
             product_id=self.product_id,
             quantity=quantity
-        )
+        )]
 
-        return [event]
+        # Check for low stock condition after reservation
+        if self.available_quantity < self.minimum_stock_level:
+            events.append(LowStockDetected(
+                product_id=self.product_id,
+                available_quantity=self.available_quantity,
+                minimum_stock_level=self.minimum_stock_level
+            ))
+
+        return events
 
     def release(self, quantity: int) -> List[Any]:
         """
@@ -167,10 +175,18 @@ class Inventory:
         self._validate_invariants()
 
         # Emit domain event
-        event = InventoryAdjusted(
+        events = [InventoryAdjusted(
             product_id=self.product_id,
             old_quantity=old_quantity,
             new_quantity=new_total_quantity
-        )
+        )]
 
-        return [event]
+        # Check for low stock condition after adjustment
+        if self.available_quantity < self.minimum_stock_level:
+            events.append(LowStockDetected(
+                product_id=self.product_id,
+                available_quantity=self.available_quantity,
+                minimum_stock_level=self.minimum_stock_level
+            ))
+
+        return events

@@ -131,27 +131,197 @@ As a purchasing manager, I need to query which products are below minimum stock 
 - **FR-018**: System MUST implement idempotent reservation operations - duplicate requests with the same order_id, product_id, and quantity MUST return success with current state without creating duplicate reservations
 - **FR-019**: System MUST auto-create product inventory records with zero quantities and default minimum stock level when a reserve or adjust operation is attempted on a non-existent product
 
-### Key Entities
+### Domain Model (CQRS + Event Sourcing)
 
-- **Inventory**: Represents stock levels for a product
-  - ProductId (unique identifier)
-  - TotalQuantity (total stock on hand)
-  - ReservedQuantity (stock held for pending orders)
-  - AvailableQuantity (calculated: TotalQuantity - ReservedQuantity)
-  - MinimumStockLevel (threshold for low stock alerts)
+#### Bounded Context
+- **Context Name**: Inventory Management
+- **Responsibility**: Track and manage product stock levels, handle reservations for orders, and monitor low stock conditions
+- **Boundaries**: Does NOT include product catalog, order management, pricing, or fulfillment
 
-- **InventoryCommand**: Represents an intent to modify inventory
-  - CommandType (Reserve, Release, Adjust)
-  - ProductId (target product)
-  - Quantity (amount to modify)
-  - RequestTimestamp (when request was made)
+#### Aggregate: Inventory
+- **Aggregate Root**: Inventory (identified by ProductId)
+- **State**:
+  - ProductId: string (unique identifier)
+  - TotalQuantity: integer (total stock on hand)
+  - ReservedQuantity: integer (stock held for pending orders)
+  - MinimumStockLevel: integer (threshold for low stock alerts)
+- **Derived State**:
+  - AvailableQuantity: integer = TotalQuantity - ReservedQuantity
+- **Invariants**:
+  - AvailableQuantity ≥ 0 (cannot have negative available stock)
+  - ReservedQuantity ≤ TotalQuantity (cannot reserve more than total)
+  - AvailableQuantity = TotalQuantity - ReservedQuantity (calculated property consistency)
+  - TotalQuantity ≥ 0 (cannot have negative total quantity)
+  - ReservedQuantity ≥ 0 (cannot have negative reservations)
+  - MinimumStockLevel ≥ 0 (threshold must be non-negative)
 
-- **InventoryEvent**: Represents a recorded state change
-  - EventType (InventoryReserved, InventoryReleased, InventoryAdjusted, LowStockDetected)
-  - ProductId (affected product)
-  - Quantity (if applicable)
-  - Timestamp (when event occurred)
-  - EventData (additional context)
+#### Commands
+Commands represent write operations (state-changing intents):
+
+1. **ReserveInventory**
+   - Input: ProductId (string), Quantity (integer), OrderId (string)
+   - Validation: Quantity > 0, AvailableQuantity >= Quantity
+   - Success Event: InventoryReserved
+   - Failure: InsufficientStockError if not enough available
+   - Idempotency: Same OrderId + ProductId + Quantity = success without duplicate reservation
+
+2. **ReleaseInventory**
+   - Input: ProductId (string), Quantity (integer), OrderId (string), Reason (string)
+   - Validation: Quantity > 0, ReservedQuantity >= Quantity
+   - Success Event: InventoryReleased
+   - Failure: InvalidQuantityError if quantity exceeds reserved
+   - Use Cases: Order cancellation, payment failure, order timeout
+
+3. **AdjustInventory**
+   - Input: ProductId (string), NewTotalQuantity (integer), Reason (string), AdjustedBy (string)
+   - Validation: NewTotalQuantity >= 0, NewTotalQuantity >= ReservedQuantity
+   - Success Event: InventoryAdjusted
+   - Failure: InvalidQuantityError if new total < reserved
+   - Use Cases: Physical stock count, damaged goods, receiving shipment
+
+#### Events
+Events represent facts about state changes (past tense):
+
+1. **InventoryReserved**
+   - ProductId: string
+   - Quantity: integer (amount reserved)
+   - OrderId: string
+   - Timestamp: datetime
+   - AvailableQuantity: integer (after reservation)
+   - ReservedQuantity: integer (after reservation)
+
+2. **InventoryReleased**
+   - ProductId: string
+   - Quantity: integer (amount released)
+   - OrderId: string
+   - Reason: string
+   - Timestamp: datetime
+   - AvailableQuantity: integer (after release)
+   - ReservedQuantity: integer (after release)
+
+3. **InventoryAdjusted**
+   - ProductId: string
+   - OldQuantity: integer (previous total)
+   - NewQuantity: integer (new total)
+   - Reason: string
+   - AdjustedBy: string
+   - Timestamp: datetime
+   - AvailableQuantity: integer (after adjustment)
+
+4. **LowStockDetected**
+   - ProductId: string
+   - AvailableQuantity: integer (current available)
+   - MinimumStockLevel: integer (threshold)
+   - Timestamp: datetime
+
+#### Policies
+Policies are business rules that react to events:
+
+1. **StockLevelMonitor Policy**
+   - Trigger: After InventoryReserved or InventoryAdjusted events
+   - Condition: AvailableQuantity < MinimumStockLevel
+   - Action: Emit LowStockDetected event
+   - Purpose: Proactive notification of low stock for reordering
+
+#### Read Models
+Read models are optimized views for queries (CQRS read side):
+
+1. **InventoryStatusReadModel**
+   - Purpose: Display current inventory on product pages
+   - Data: ProductId, TotalQuantity, ReservedQuantity, AvailableQuantity, MinimumStockLevel
+   - Updated By: All inventory events
+   - Query Endpoint: GET /v1/inventory/{product_id}
+
+2. **LowStockListReadModel**
+   - Purpose: Admin dashboard showing products needing reorder
+   - Data: List of ProductId where AvailableQuantity < MinimumStockLevel
+   - Updated By: InventoryReserved, InventoryAdjusted, LowStockDetected events
+   - Query Endpoint: GET /v1/inventory/low-stock
+
+#### Event Sourcing Architecture
+
+**Event-Driven State Changes**:
+- All state modifications go through commands that emit events
+- Events are the source of truth for state reconstruction
+- No direct state mutation outside command handlers
+
+**Event Persistence**:
+- All events MUST be persisted before command completes
+- Events stored in append-only event log
+- Event publishing and state persistence are atomic (both succeed or both rollback)
+
+**Idempotency Guarantees**:
+- ReserveInventory: Same OrderId + ProductId + Quantity = no duplicate reservation, return current state
+- Commands include correlation IDs for de-duplication
+- Safe for network retries
+
+**Event Ordering**:
+- Events for same Aggregate (ProductId) are strictly ordered by timestamp
+- Cross-aggregate events have no ordering guarantees
+- Event replay reconstructs aggregate state in chronological order
+
+#### Business Logic Rules
+
+**Stock Reservation Validation**:
+- MUST check AvailableQuantity >= RequestedQuantity before reserving
+- Fail with InsufficientStockError (HTTP 409) if insufficient
+- Use pessimistic locking (SELECT FOR UPDATE) to prevent race conditions
+
+**Stock Release Conditions**:
+- Order cancellation by customer
+- Payment processing failure
+- Order timeout (no payment within deadline)
+- Release quantity MUST NOT exceed currently reserved quantity
+
+**Manual Inventory Adjustment Rules**:
+- Only authorized warehouse managers can adjust
+- Requires Reason (e.g., "Physical count", "Damaged goods")
+- Requires AdjustedBy identifier for audit trail
+- Cannot adjust below currently reserved quantity
+- All adjustments logged as events for compliance
+
+**Low Stock Threshold Behavior**:
+- Triggered when AvailableQuantity falls below MinimumStockLevel
+- LowStockDetected event emitted automatically
+- Purchasing managers query GET /low-stock endpoint (pull-based, not push notifications)
+
+**Concurrent Reservation Handling**:
+- Pessimistic locking with SELECT FOR UPDATE on aggregate row
+- Second request blocks until first completes
+- Ensures atomic read-modify-write operations
+- Prevents double allocation across concurrent requests
+
+**Double Reservation Prevention**:
+- Idempotency key: OrderId + ProductId + Quantity
+- Duplicate requests return success with current inventory state
+- No duplicate InventoryReserved events for same order
+
+#### Integration Contracts
+
+**Order Service Integration** (Command Source):
+- Sends: ReserveInventory command when order created
+- Sends: ReleaseInventory command when order cancelled/failed
+- Expects: Synchronous HTTP response (success/failure)
+- Error Handling: Receives HTTP 409 if insufficient stock, HTTP 404 if product not found
+
+**Notification Service Integration** (Event Consumer):
+- Receives: LowStockDetected events (for future proactive notifications)
+- Receives: All inventory events for audit logging
+- Delivery: Asynchronous event subscription (fire-and-forget from inventory service perspective)
+- Note: Currently low stock monitoring is pull-based via GET /low-stock, but events enable future push notifications
+
+**Event Publishing Requirements**:
+- Events published to message bus after successful state persistence
+- Publishing MUST be part of atomic transaction with state change
+- If event publishing fails, entire operation (state change + event) rolls back
+- Ensures consistency between inventory state and published events
+
+**API Contracts**:
+- POST /v1/inventory/{product_id}/reserve: ReserveInventoryRequest → OperationResult
+- POST /v1/inventory/{product_id}/release: ReleaseInventoryRequest → OperationResult
+- PUT /v1/inventory/{product_id}: AdjustInventoryRequest → OperationResult
+- GET /v1/inventory/{product_id}: → InventoryResponse
+- GET /v1/inventory/low-stock: → LowStockListResponse
 
 ## Success Criteria *(mandatory)*
 

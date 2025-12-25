@@ -26,6 +26,55 @@ def get_inventory_service(repo=Depends(get_repo_dependency)) -> InventoryService
 
 
 @router.get(
+    "/inventory/low-stock",
+    response_model=list[InventoryResponse],
+    responses={
+        200: {"description": "List of low stock products (may be empty)"}
+    }
+)
+def get_low_stock_items(
+    service: InventoryService = Depends(get_inventory_service)
+):
+    """
+    Get all products with stock below minimum threshold.
+
+    Returns:
+        List of InventoryResponse for products with available quantity < minimum stock level
+
+    Notes:
+        - Returns empty list if no products are low on stock
+        - Low stock monitoring is pull-based (this endpoint must be polled)
+    """
+    try:
+        logger.info("GET /inventory/low-stock")
+
+        low_stock_items = service.get_low_stock_items()
+
+        # Convert to response format
+        response = [
+            InventoryResponse(
+                product_id=inventory.product_id,
+                total_quantity=inventory.total_quantity,
+                reserved_quantity=inventory.reserved_quantity,
+                available_quantity=inventory.available_quantity,
+                minimum_stock_level=inventory.minimum_stock_level
+            )
+            for inventory in low_stock_items
+        ]
+
+        logger.info(f"Returning {len(response)} low stock items")
+
+        return response
+
+    except Exception as e:
+        logger.error(f"Unexpected error querying low stock items: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+@router.get(
     "/inventory/{product_id}",
     response_model=InventoryResponse,
     responses={

@@ -182,21 +182,21 @@
 
 ### Tests for User Story 5 (TDD - Write FIRST)
 
-- [ ] T069 [P] [US5] Write unit test for StockLevelMonitor policy detecting low stock in tests/unit/test_stock_monitor_policy.py
-- [ ] T070 [P] [US5] Write unit test for Inventory.reserve() emitting LowStockDetected when below minimum in tests/unit/test_inventory_aggregate.py
-- [ ] T071 [P] [US5] Write unit test for Inventory.adjust() emitting LowStockDetected when below minimum in tests/unit/test_inventory_aggregate.py
-- [ ] T072 [P] [US5] Write integration test for low stock policy triggering in tests/integration/test_inventory_workflows.py
-- [ ] T073 [P] [US5] Write contract test for GET /v1/inventory/low-stock endpoint in tests/contract/test_inventory_api.py
+- [x] T069 [P] [US5] Write unit test for StockLevelMonitor policy detecting low stock in tests/unit/test_stock_monitor_policy.py
+- [x] T070 [P] [US5] Write unit test for Inventory.reserve() emitting LowStockDetected when below minimum in tests/unit/test_inventory_aggregate.py
+- [x] T071 [P] [US5] Write unit test for Inventory.adjust() emitting LowStockDetected when below minimum in tests/unit/test_inventory_aggregate.py
+- [x] T072 [P] [US5] Write integration test for low stock policy triggering in tests/integration/test_inventory_workflows.py
+- [x] T073 [P] [US5] Write contract test for GET /v1/inventory/low-stock endpoint in tests/contract/test_inventory_api.py
 
 ### Implementation for User Story 5
 
-- [ ] T074 [US5] Update Inventory.reserve() to check low stock condition and append LowStockDetected event in src/domain/inventory.py
-- [ ] T075 [US5] Update Inventory.adjust() to check low stock condition and append LowStockDetected event in src/domain/inventory.py
-- [ ] T076 [US5] Implement StockLevelMonitor policy in src/application/policies/stock_monitor.py (react to events, emit alerts)
-- [ ] T077 [US5] Implement InventoryService.get_low_stock_items method in src/application/inventory_service.py (query repository for items below minimum)
-- [ ] T078 [US5] Implement repository.find_low_stock() method in src/infrastructure/database/repository.py (SQL query for available < minimum)
-- [ ] T079 [US5] Implement GET /v1/inventory/low-stock endpoint in src/infrastructure/api/routes.py (call service, return LowStockResponse)
-- [ ] T080 [US5] Run all User Story 5 tests and verify they pass
+- [x] T074 [US5] Update Inventory.reserve() to check low stock condition and append LowStockDetected event in src/domain/inventory.py
+- [x] T075 [US5] Update Inventory.adjust() to check low stock condition and append LowStockDetected event in src/domain/inventory.py
+- [x] T076 [US5] Implement StockLevelMonitor policy in src/application/policies/stock_monitor.py (react to events, emit alerts)
+- [x] T077 [US5] Implement InventoryService.get_low_stock_items method in src/application/inventory_service.py (query repository for items below minimum)
+- [x] T078 [US5] Implement repository.find_low_stock() method in src/infrastructure/database/repository.py (SQL query for available < minimum)
+- [x] T079 [US5] Implement GET /v1/inventory/low-stock endpoint in src/infrastructure/api/routes.py (call service, return LowStockResponse)
+- [x] T080 [US5] Run all User Story 5 tests and verify they pass
 
 **Checkpoint**: All user stories should now be independently functional
 

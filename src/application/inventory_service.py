@@ -180,3 +180,18 @@ class InventoryService:
         )
 
         return inventory
+
+    def get_low_stock_items(self) -> list[Inventory]:
+        """
+        Query all products with stock below minimum threshold.
+
+        Returns:
+            List of Inventory aggregates below minimum stock level
+        """
+        logger.info("Querying low stock items")
+
+        low_stock_items = self.repository.find_low_stock()
+
+        logger.info(f"Found {len(low_stock_items)} products with low stock")
+
+        return low_stock_items

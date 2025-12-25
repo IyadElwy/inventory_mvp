@@ -362,3 +362,134 @@ class TestAdjustInventoryEndpoint:
 
         # Assert: 422 Validation Error for negative quantity
         assert response.status_code == 422
+
+
+class TestLowStockEndpoint:
+    """T073: Test GET /v1/inventory/low-stock endpoint contract"""
+
+    def test_get_low_stock_items(self, client, db_session):
+        """GET low-stock returns products below minimum threshold"""
+        # Arrange: Create multiple products, some below minimum
+        repository = InventoryRepository(db_session)
+
+        # Product 1: Below minimum (available=10, minimum=20)
+        inventory1 = Inventory(
+            product_id="PROD-LS-001",
+            total_quantity=30,
+            reserved_quantity=20,
+            minimum_stock_level=20
+        )
+        repository.save(inventory1)
+
+        # Product 2: Below minimum (available=5, minimum=15)
+        inventory2 = Inventory(
+            product_id="PROD-LS-002",
+            total_quantity=25,
+            reserved_quantity=20,
+            minimum_stock_level=15
+        )
+        repository.save(inventory2)
+
+        # Product 3: Above minimum (available=100, minimum=20)
+        inventory3 = Inventory(
+            product_id="PROD-LS-003",
+            total_quantity=120,
+            reserved_quantity=20,
+            minimum_stock_level=20
+        )
+        repository.save(inventory3)
+
+        # Act: Call low-stock API endpoint
+        response = client.get("/v1/inventory/low-stock")
+
+        # Assert: Status code and response schema
+        assert response.status_code == 200
+
+        data = response.json()
+        assert isinstance(data, list)
+
+        # Assert: At least our low-stock products are returned
+        product_ids = [item["product_id"] for item in data]
+        assert "PROD-LS-001" in product_ids
+        assert "PROD-LS-002" in product_ids
+        assert "PROD-LS-003" not in product_ids  # This one is above minimum
+
+        # Assert: Response schema for each item
+        for item in data:
+            assert "product_id" in item
+            assert "total_quantity" in item
+            assert "reserved_quantity" in item
+            assert "available_quantity" in item
+            assert "minimum_stock_level" in item
+
+            # Verify each item is indeed below minimum
+            assert item["available_quantity"] < item["minimum_stock_level"]
+
+    def test_get_low_stock_empty_when_all_above_minimum(self, client, db_session):
+        """GET low-stock returns empty list when all products above minimum"""
+        # Arrange: Create products all above minimum
+        repository = InventoryRepository(db_session)
+
+        inventory = Inventory(
+            product_id="PROD-LS-100",
+            total_quantity=200,
+            reserved_quantity=50,
+            minimum_stock_level=100
+        )
+        repository.save(inventory)
+
+        # Act: Call low-stock API endpoint
+        response = client.get("/v1/inventory/low-stock")
+
+        # Assert: Response OK and this specific product is NOT in low stock
+        assert response.status_code == 200
+
+        data = response.json()
+        assert isinstance(data, list)
+
+        # Our product should NOT be in the results (it's above minimum)
+        product_ids = [item["product_id"] for item in data]
+        assert "PROD-LS-100" not in product_ids
+
+    def test_get_low_stock_response_schema(self, client, db_session):
+        """GET low-stock returns correct Pydantic schema"""
+        # Arrange: Create one low-stock product
+        repository = InventoryRepository(db_session)
+
+        inventory = Inventory(
+            product_id="PROD-LS-200",
+            total_quantity=15,
+            reserved_quantity=10,
+            minimum_stock_level=10
+        )
+        repository.save(inventory)
+
+        # Act: Call API endpoint
+        response = client.get("/v1/inventory/low-stock")
+
+        # Assert: Response matches expected schema
+        assert response.status_code == 200
+
+        data = response.json()
+        assert isinstance(data, list)
+        assert len(data) >= 1  # At least our product should be there
+
+        # Find our specific product in the results
+        our_product = next((item for item in data if item["product_id"] == "PROD-LS-200"), None)
+        assert our_product is not None, "PROD-LS-200 should be in low stock results"
+
+        item = our_product
+
+        # Schema validation: all fields present and correct types
+        assert isinstance(item["product_id"], str)
+        assert isinstance(item["total_quantity"], int)
+        assert isinstance(item["reserved_quantity"], int)
+        assert isinstance(item["available_quantity"], int)
+        assert isinstance(item["minimum_stock_level"], int)
+
+        # Schema validation: expected field set
+        expected_fields = {
+            "product_id", "total_quantity", "reserved_quantity",
+            "available_quantity", "minimum_stock_level"
+        }
+        assert set(item.keys()) == expected_fields

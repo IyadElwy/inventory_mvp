@@ -9,7 +9,7 @@ from src.infrastructure.database.repository import InventoryRepository
 from src.infrastructure.events.local_publisher import LocalEventPublisher
 from src.domain.inventory import Inventory
 from src.domain.exceptions import InventoryNotFoundError, InsufficientStockError, InvalidQuantityError
-from src.domain.events import InventoryReserved, InventoryReleased, InventoryAdjusted
+from src.domain.events import InventoryReserved, InventoryReleased, InventoryAdjusted, LowStockDetected
 from src.infrastructure.database.session import get_db
 
 
@@ -271,3 +271,86 @@ class TestAdjustInventoryWorkflow:
             inventory_service.adjust_inventory(
                 "PROD-ADJUST-003", 50, "Invalid adjustment", "manager@example.com"
             )
+
+
+class TestLowStockWorkflow:
+    """T072: Test low stock detection workflow"""
+
+    def test_low_stock_detected_after_reservation(self, inventory_service, repository, event_publisher):
+        """Low stock alert triggered when reservation drops below minimum"""
+        # Arrange: Create inventory near minimum threshold
+        inventory = Inventory(
+            product_id="PROD-LOWSTOCK-001",
+            total_quantity=50,
+            reserved_quantity=28,
+            minimum_stock_level=20
+        )
+        repository.save(inventory)
+
+        # Available is 22, just above minimum 20
+        # Reserve 5 units to drop to 17 (below minimum)
+
+        # Act: Reserve inventory via service
+        result = inventory_service.reserve_inventory("PROD-LOWSTOCK-001", 5, "ORDER-LS-001")
+
+        # Assert: Inventory state updated
+        assert result.available_quantity == 17
+
+        # Assert: Both InventoryReserved and LowStockDetected events published
+        assert len(event_publisher.published_events) == 2
+        assert isinstance(event_publisher.published_events[0], InventoryReserved)
+        assert isinstance(event_publisher.published_events[1], LowStockDetected)
+
+        low_stock_event = event_publisher.published_events[1]
+        assert low_stock_event.product_id == "PROD-LOWSTOCK-001"
+        assert low_stock_event.available_quantity == 17
+        assert low_stock_event.minimum_stock_level == 20
+
+    def test_low_stock_detected_after_adjustment(self, inventory_service, repository, event_publisher):
+        """Low stock alert triggered when adjustment reduces available below minimum"""
+        # Arrange: Create inventory
+        inventory = Inventory(
+            product_id="PROD-LOWSTOCK-002",
+            total_quantity=100,
+            reserved_quantity=30,
+            minimum_stock_level=50
+        )
+        repository.save(inventory)
+
+        # Available is 70, above minimum 50
+        # Adjust down to 60 total, available becomes 30 (below minimum 50)
+
+        # Act: Adjust inventory via service
+        result = inventory_service.adjust_inventory(
+            "PROD-LOWSTOCK-002", 60, "Damaged goods", "manager@example.com"
+        )
+
+        # Assert: Inventory state updated
+        assert result.total_quantity == 60
+        assert result.available_quantity == 30
+
+        # Assert: Both InventoryAdjusted and LowStockDetected events published
+        assert len(event_publisher.published_events) == 2
+        assert isinstance(event_publisher.published_events[0], InventoryAdjusted)
+        assert isinstance(event_publisher.published_events[1], LowStockDetected)
+
+    def test_no_low_stock_when_above_minimum(self, inventory_service, repository, event_publisher):
+        """No low stock alert when inventory stays above minimum"""
+        # Arrange: Create inventory well above minimum
+        inventory = Inventory(
+            product_id="PROD-LOWSTOCK-003",
+            total_quantity=200,
+            reserved_quantity=50,
+            minimum_stock_level=50
+        )
+        repository.save(inventory)
+
+        # Available is 150, well above minimum 50
+        # Reserve 20 units, still at 130 (above minimum)
+
+        # Act: Reserve inventory via service
+        result = inventory_service.reserve_inventory("PROD-LOWSTOCK-003", 20, "ORDER-LS-003")
+
+        # Assert: Only InventoryReserved event, no LowStockDetected
+        assert len(event_publisher.published_events) == 1
+        assert isinstance(event_publisher.published_events[0], InventoryReserved)

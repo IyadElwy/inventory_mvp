@@ -5,7 +5,7 @@ Tests the domain logic in isolation without external dependencies.
 import pytest
 from src.domain.inventory import Inventory
 from src.domain.exceptions import InvalidQuantityError, InsufficientStockError
-from src.domain.events import InventoryReserved, InventoryReleased, InventoryAdjusted
+from src.domain.events import InventoryReserved, InventoryReleased, InventoryAdjusted, LowStockDetected
 
 
 class TestInventoryCreation:
@@ -338,3 +338,101 @@ class TestInventoryAdjust:
 
         with pytest.raises(InvalidQuantityError, match="Total quantity cannot be negative"):
             inventory.adjust(-10, "Invalid", "manager@example.com")
+
+
+class TestLowStockDetection:
+    """Test low stock detection in domain methods"""
+
+    def test_reserve_emits_low_stock_when_below_minimum(self):
+        """T070: Reserve emits LowStockDetected when available drops below minimum"""
+        # Arrange: Create inventory at threshold
+        inventory = Inventory(
+            product_id="PROD-LOW-010",
+            total_quantity=50,
+            reserved_quantity=28,
+            minimum_stock_level=20
+        )
+
+        # Available is currently 22, just above minimum 20
+        # Reserve 5 units to drop to 17 (below minimum)
+
+        # Act: Reserve inventory
+        events = inventory.reserve(5)
+
+        # Assert: Both InventoryReserved and LowStockDetected events emitted
+        assert len(events) == 2
+        assert isinstance(events[0], InventoryReserved)
+        assert isinstance(events[1], LowStockDetected)
+        
+        # Verify LowStockDetected event details
+        low_stock_event = events[1]
+        assert low_stock_event.product_id == "PROD-LOW-010"
+        assert low_stock_event.available_quantity == 17
+        assert low_stock_event.minimum_stock_level == 20
+
+    def test_reserve_no_low_stock_when_above_minimum(self):
+        """Reserve does NOT emit LowStockDetected when still above minimum"""
+        # Arrange: Create inventory well above minimum
+        inventory = Inventory(
+            product_id="PROD-LOW-011",
+            total_quantity=100,
+            reserved_quantity=20,
+            minimum_stock_level=30
+        )
+
+        # Available is 80, well above minimum 30
+        # Reserve 10 units, still at 70 (above minimum)
+
+        # Act: Reserve inventory
+        events = inventory.reserve(10)
+
+        # Assert: Only InventoryReserved event, no LowStockDetected
+        assert len(events) == 1
+        assert isinstance(events[0], InventoryReserved)
+
+    def test_adjust_emits_low_stock_when_below_minimum(self):
+        """T071: Adjust emits LowStockDetected when available drops below minimum"""
+        # Arrange: Create inventory
+        inventory = Inventory(
+            product_id="PROD-LOW-012",
+            total_quantity=100,
+            reserved_quantity=30,
+            minimum_stock_level=50
+        )
+
+        # Available is currently 70, above minimum 50
+        # Adjust down to 60 total, available becomes 30 (below minimum 50)
+
+        # Act: Adjust inventory
+        events = inventory.adjust(60, "Damaged goods", "manager@example.com")
+
+        # Assert: Both InventoryAdjusted and LowStockDetected events emitted
+        assert len(events) == 2
+        assert isinstance(events[0], InventoryAdjusted)
+        assert isinstance(events[1], LowStockDetected)
+        
+        # Verify LowStockDetected event details
+        low_stock_event = events[1]
+        assert low_stock_event.product_id == "PROD-LOW-012"
+        assert low_stock_event.available_quantity == 30
+        assert low_stock_event.minimum_stock_level == 50
+
+    def test_adjust_no_low_stock_when_above_minimum(self):
+        """Adjust does NOT emit LowStockDetected when still above minimum"""
+        # Arrange: Create inventory
+        inventory = Inventory(
+            product_id="PROD-LOW-013",
+            total_quantity=100,
+            reserved_quantity=20,
+            minimum_stock_level=30
+        )
+
+        # Available is 80, well above minimum 30
+        # Adjust to 120, available becomes 100 (still above minimum)
+
+        # Act: Adjust inventory
+        events = inventory.adjust(120, "Restock", "manager@example.com")
+
+        # Assert: Only InventoryAdjusted event, no LowStockDetected
+        assert len(events) == 1
+        assert isinstance(events[0], InventoryAdjusted)
