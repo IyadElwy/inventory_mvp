@@ -21,3 +21,8 @@ class InsufficientStockError(InventoryDomainError):
 class InventoryNotFoundError(InventoryDomainError):
     """Raised when product not found in inventory"""
     pass
+
+
+class InventoryAlreadyExistsError(InventoryDomainError):
+    """Raised when attempting to create inventory for product that already exists"""
+    pass

@@ -4,8 +4,9 @@ Provides database abstraction for the domain layer.
 """
 from typing import Optional, List
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from src.domain.inventory import Inventory
-from src.domain.exceptions import InventoryNotFoundError
+from src.domain.exceptions import InventoryNotFoundError, InventoryAlreadyExistsError
 from src.infrastructure.database.models import InventoryModel
 
 
@@ -80,6 +81,44 @@ class InventoryRepository:
         ).all()
 
         return [model.to_domain() for model in models]
+
+    def create(self, inventory: Inventory) -> Inventory:
+        """
+        Create new inventory record (T012 - User Story 1).
+
+        Args:
+            inventory: Inventory aggregate to persist
+
+        Returns:
+            Created inventory aggregate with all fields
+
+        Raises:
+            InventoryAlreadyExistsError: If product_id already exists
+        """
+        # Convert domain entity to database model
+        model = InventoryModel.from_domain(inventory)
+
+        # Add to session
+        self.db.add(model)
+
+        try:
+            # Commit to database
+            self.db.commit()
+
+            # Refresh to get any database-generated values
+            self.db.refresh(model)
+
+            # Convert back to domain entity and return
+            return model.to_domain()
+
+        except IntegrityError as e:
+            # Rollback on error
+            self.db.rollback()
+
+            # Map database constraint violation to domain exception
+            raise InventoryAlreadyExistsError(
+                f"Inventory already exists for product {inventory.product_id}"
+            ) from e
 
     def delete(self, product_id: str) -> None:
         """

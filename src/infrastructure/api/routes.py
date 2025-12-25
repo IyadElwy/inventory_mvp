@@ -7,11 +7,11 @@ from datetime import datetime
 from src.application.inventory_service import InventoryService
 from src.infrastructure.api.schemas import (
     InventoryResponse, ErrorResponse, ReserveInventoryRequest, ReleaseInventoryRequest,
-    AdjustInventoryRequest, OperationResult
+    AdjustInventoryRequest, OperationResult, CreateInventoryRequest
 )
 from src.infrastructure.api.dependencies import get_repo_dependency, get_event_publisher
 from src.infrastructure.events.local_publisher import LocalEventPublisher
-from src.domain.exceptions import InventoryNotFoundError, InsufficientStockError, InvalidQuantityError
+from src.domain.exceptions import InventoryNotFoundError, InsufficientStockError, InvalidQuantityError, InventoryAlreadyExistsError
 import logging
 
 logger = logging.getLogger(__name__)
@@ -70,6 +70,77 @@ def get_low_stock_items(
 
     except Exception as e:
         logger.error(f"Unexpected error querying low stock items: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+@router.post(
+    "/inventory",
+    response_model=OperationResult,
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        409: {"model": ErrorResponse, "description": "Product already exists"},
+        422: {"description": "Validation error"}
+    }
+)
+def create_inventory(
+    request: CreateInventoryRequest,
+    service: InventoryService = Depends(get_inventory_service)
+):
+    """
+    Create new inventory record (T015 - User Story 1).
+
+    Args:
+        request: Creation request with product_id, initial_quantity, minimum_stock_level
+
+    Returns:
+        OperationResult with created inventory details
+
+    Raises:
+        HTTPException 409: Product already exists
+        HTTPException 422: Invalid request data
+    """
+    try:
+        logger.info(f"POST /inventory - product: {request.product_id}, quantity: {request.initial_quantity}")
+
+        inventory = service.create_inventory(
+            product_id=request.product_id,
+            initial_quantity=request.initial_quantity,
+            minimum_stock_level=request.minimum_stock_level
+        )
+
+        inventory_response = InventoryResponse(
+            product_id=inventory.product_id,
+            total_quantity=inventory.total_quantity,
+            reserved_quantity=inventory.reserved_quantity,
+            available_quantity=inventory.available_quantity,
+            minimum_stock_level=inventory.minimum_stock_level
+        )
+
+        return OperationResult(
+            success=True,
+            message=f"Successfully created inventory for product {request.product_id}",
+            inventory=inventory_response
+        )
+
+    except InventoryAlreadyExistsError as e:
+        logger.warning(f"Duplicate inventory creation: {request.product_id}")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e)
+        )
+
+    except InvalidQuantityError as e:
+        logger.warning(f"Invalid creation request: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e)
+        )
+
+    except Exception as e:
+        logger.error(f"Unexpected error creating inventory for {request.product_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"

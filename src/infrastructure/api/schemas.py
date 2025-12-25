@@ -35,6 +35,21 @@ class AdjustInventoryRequest(BaseModel):
     adjusted_by: str = Field(..., min_length=1, description="User or system performing adjustment")
 
 
+class CreateInventoryRequest(BaseModel):
+    """Request to create new inventory record (T014 - User Story 1)"""
+    product_id: str = Field(..., min_length=1, description="Unique product identifier")
+    initial_quantity: int = Field(..., ge=0, description="Initial stock quantity (non-negative)")
+    minimum_stock_level: int = Field(..., ge=0, description="Minimum stock threshold (non-negative)")
+
+    @field_validator('product_id')
+    @classmethod
+    def product_id_not_whitespace(cls, v: str) -> str:
+        """Reject whitespace-only product IDs"""
+        if not v.strip():
+            raise ValueError('Product ID cannot be whitespace only')
+        return v.strip()
+
+
 # Response Schemas
 
 class InventoryResponse(BaseModel):

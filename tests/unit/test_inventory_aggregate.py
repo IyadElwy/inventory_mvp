@@ -5,7 +5,7 @@ Tests the domain logic in isolation without external dependencies.
 import pytest
 from src.domain.inventory import Inventory
 from src.domain.exceptions import InvalidQuantityError, InsufficientStockError
-from src.domain.events import InventoryReserved, InventoryReleased, InventoryAdjusted, LowStockDetected
+from src.domain.events import InventoryReserved, InventoryReleased, InventoryAdjusted, LowStockDetected, InventoryCreated
 
 
 class TestInventoryCreation:
@@ -436,3 +436,223 @@ class TestLowStockDetection:
         # Assert: Only InventoryAdjusted event, no LowStockDetected
         assert len(events) == 1
         assert isinstance(events[0], InventoryAdjusted)
+
+
+class TestInventoryCreateFactory:
+    """Test Inventory.create() factory method (T007 - User Story 1)"""
+
+    def test_create_with_valid_inputs(self):
+        """T007: Successfully create inventory with valid inputs"""
+        # Act: Create inventory using factory method
+        inventory, events = Inventory.create(
+            product_id="PROD-NEW-001",
+            initial_quantity=100,
+            minimum_stock_level=10
+        )
+
+        # Assert: Inventory entity has correct state
+        assert inventory.product_id == "PROD-NEW-001"
+        assert inventory.total_quantity == 100
+        assert inventory.reserved_quantity == 0
+        assert inventory.available_quantity == 100
+        assert inventory.minimum_stock_level == 10
+
+        # Assert: InventoryCreated event emitted
+        assert len(events) == 1
+        assert isinstance(events[0], InventoryCreated)
+        assert events[0].product_id == "PROD-NEW-001"
+        assert events[0].initial_quantity == 100
+        assert events[0].minimum_stock_level == 10
+        assert events[0].timestamp is not None
+
+    def test_create_reserved_quantity_is_zero(self):
+        """T007: Created inventory always has reserved_quantity=0"""
+        inventory, events = Inventory.create(
+            product_id="PROD-NEW-002",
+            initial_quantity=50,
+            minimum_stock_level=5
+        )
+
+        assert inventory.reserved_quantity == 0
+        assert inventory.available_quantity == inventory.total_quantity
+
+    def test_create_emits_inventory_created_event(self):
+        """T007: Create emits InventoryCreated event with correct data"""
+        inventory, events = Inventory.create(
+            product_id="PROD-NEW-003",
+            initial_quantity=75,
+            minimum_stock_level=15
+        )
+
+        assert len(events) >= 1
+        created_event = events[0]
+        assert isinstance(created_event, InventoryCreated)
+        assert created_event.product_id == "PROD-NEW-003"
+        assert created_event.initial_quantity == 75
+        assert created_event.minimum_stock_level == 15
+
+    def test_create_emits_low_stock_when_initial_below_minimum(self):
+        """T007: Create emits LowStockDetected when initial_quantity < minimum_stock_level"""
+        inventory, events = Inventory.create(
+            product_id="PROD-NEW-004",
+            initial_quantity=5,
+            minimum_stock_level=20
+        )
+
+        # Assert: Two events emitted
+        assert len(events) == 2
+        assert isinstance(events[0], InventoryCreated)
+        assert isinstance(events[1], LowStockDetected)
+
+        # Verify LowStockDetected event
+        low_stock_event = events[1]
+        assert low_stock_event.product_id == "PROD-NEW-004"
+        assert low_stock_event.available_quantity == 5
+        assert low_stock_event.minimum_stock_level == 20
+
+    def test_create_no_low_stock_when_initial_above_minimum(self):
+        """T007: Create does NOT emit LowStockDetected when initial >= minimum"""
+        inventory, events = Inventory.create(
+            product_id="PROD-NEW-005",
+            initial_quantity=100,
+            minimum_stock_level=20
+        )
+
+        # Assert: Only InventoryCreated event
+        assert len(events) == 1
+        assert isinstance(events[0], InventoryCreated)
+
+    def test_create_with_zero_initial_quantity(self):
+        """T007: Create accepts zero initial_quantity (valid per spec)"""
+        inventory, events = Inventory.create(
+            product_id="PROD-NEW-006",
+            initial_quantity=0,
+            minimum_stock_level=10
+        )
+
+        assert inventory.total_quantity == 0
+        assert inventory.available_quantity == 0
+        assert len(events) == 2  # InventoryCreated + LowStockDetected
+
+    def test_create_with_zero_minimum_stock_level(self):
+        """T007: Create accepts zero minimum_stock_level (valid per spec)"""
+        inventory, events = Inventory.create(
+            product_id="PROD-NEW-007",
+            initial_quantity=50,
+            minimum_stock_level=0
+        )
+
+        assert inventory.minimum_stock_level == 0
+        assert len(events) == 1  # Only InventoryCreated
+
+    def test_create_with_negative_initial_quantity_raises_error(self):
+        """T007: Create with negative initial_quantity raises InvalidQuantityError"""
+        with pytest.raises(InvalidQuantityError, match="Initial quantity.*must be non-negative"):
+            Inventory.create(
+                product_id="PROD-NEW-008",
+                initial_quantity=-10,
+                minimum_stock_level=5
+            )
+
+    def test_create_with_negative_minimum_stock_raises_error(self):
+        """T007: Create with negative minimum_stock_level raises InvalidQuantityError"""
+        with pytest.raises(InvalidQuantityError, match="Minimum stock level.*must be non-negative"):
+            Inventory.create(
+                product_id="PROD-NEW-009",
+                initial_quantity=100,
+                minimum_stock_level=-5
+            )
+
+    def test_create_with_empty_product_id_raises_error(self):
+        """T007: Create with empty product_id raises InvalidQuantityError"""
+        with pytest.raises(InvalidQuantityError, match="Product ID.*cannot be empty"):
+            Inventory.create(
+                product_id="",
+                initial_quantity=100,
+                minimum_stock_level=10
+            )
+
+    def test_create_with_whitespace_product_id_raises_error(self):
+        """T007: Create with whitespace-only product_id raises InvalidQuantityError"""
+        with pytest.raises(InvalidQuantityError, match="Product ID.*cannot be empty"):
+            Inventory.create(
+                product_id="   ",
+                initial_quantity=100,
+                minimum_stock_level=10
+            )
+
+    # T018: Additional comprehensive validation tests for User Story 2
+
+    def test_create_with_special_characters_in_product_id(self):
+        """T018: Create accepts product_id with special characters (per spec)"""
+        inventory, events = Inventory.create(
+            product_id="PROD-123!@#$%",
+            initial_quantity=50,
+            minimum_stock_level=5
+        )
+
+        assert inventory.product_id == "PROD-123!@#$%"
+        assert len(events) >= 1
+
+    def test_create_with_unicode_product_id(self):
+        """T018: Create accepts product_id with Unicode characters (per spec)"""
+        inventory, events = Inventory.create(
+            product_id="产品-001-™",
+            initial_quantity=25,
+            minimum_stock_level=2
+        )
+
+        assert inventory.product_id == "产品-001-™"
+        assert len(events) >= 1
+
+    def test_create_error_messages_are_clear_and_actionable(self):
+        """T018: Error messages clearly explain the validation failure"""
+        # Test negative initial_quantity
+        try:
+            Inventory.create("PROD-001", -5, 10)
+            assert False, "Should have raised InvalidQuantityError"
+        except InvalidQuantityError as e:
+            assert "non-negative" in str(e).lower()
+
+        # Test negative minimum_stock_level
+        try:
+            Inventory.create("PROD-002", 100, -10)
+            assert False, "Should have raised InvalidQuantityError"
+        except InvalidQuantityError as e:
+            assert "non-negative" in str(e).lower()
+
+        # Test empty product_id
+        try:
+            Inventory.create("", 100, 10)
+            assert False, "Should have raised InvalidQuantityError"
+        except InvalidQuantityError as e:
+            assert "empty" in str(e).lower()
+
+    def test_create_with_zero_both_quantities(self):
+        """T018: Create accepts zero for both initial_quantity and minimum_stock_level"""
+        inventory, events = Inventory.create(
+            product_id="PROD-ZERO",
+            initial_quantity=0,
+            minimum_stock_level=0
+        )
+
+        assert inventory.total_quantity == 0
+        assert inventory.minimum_stock_level == 0
+        # Should only emit InventoryCreated, not LowStockDetected (0 is not < 0)
+        assert len(events) == 1
+        assert isinstance(events[0], InventoryCreated)
+
+    def test_create_minimum_above_initial_is_allowed(self):
+        """T018: Creating inventory with minimum > initial is valid (triggers low stock)"""
+        inventory, events = Inventory.create(
+            product_id="PROD-LOW-START",
+            initial_quantity=10,
+            minimum_stock_level=50
+        )
+
+        assert inventory.total_quantity == 10
+        assert inventory.minimum_stock_level == 50
+        # Should emit both events
+        assert len(events) == 2
+        assert isinstance(events[0], InventoryCreated)
+        assert isinstance(events[1], LowStockDetected)

@@ -3,9 +3,9 @@ Inventory Aggregate - Domain Model.
 Represents the core inventory business logic with validation and invariants.
 """
 from dataclasses import dataclass, field
-from typing import List, Any
+from typing import List, Any, Tuple
 from src.domain.exceptions import InvalidQuantityError, InsufficientStockError
-from src.domain.events import InventoryReserved, InventoryReleased, InventoryAdjusted, LowStockDetected
+from src.domain.events import InventoryReserved, InventoryReleased, InventoryAdjusted, LowStockDetected, InventoryCreated
 
 
 @dataclass
@@ -53,6 +53,64 @@ class Inventory:
         Available = Total - Reserved
         """
         return self.total_quantity - self.reserved_quantity
+
+    @classmethod
+    def create(
+        cls,
+        product_id: str,
+        initial_quantity: int,
+        minimum_stock_level: int
+    ) -> Tuple['Inventory', List[Any]]:
+        """
+        Factory method to create new inventory record with validation.
+
+        Args:
+            product_id: Unique product identifier (cannot be empty)
+            initial_quantity: Initial stock quantity (must be >= 0)
+            minimum_stock_level: Minimum stock threshold (must be >= 0)
+
+        Returns:
+            Tuple of (created Inventory instance, list of domain events)
+
+        Raises:
+            InvalidQuantityError: If validation fails
+        """
+        # Validate product_id
+        if not product_id or not product_id.strip():
+            raise InvalidQuantityError("Product ID cannot be empty")
+
+        # Validate initial_quantity
+        if initial_quantity < 0:
+            raise InvalidQuantityError("Initial quantity must be non-negative")
+
+        # Validate minimum_stock_level
+        if minimum_stock_level < 0:
+            raise InvalidQuantityError("Minimum stock level must be non-negative")
+
+        # Create inventory instance with reserved_quantity=0
+        inventory = cls(
+            product_id=product_id.strip(),
+            total_quantity=initial_quantity,
+            reserved_quantity=0,
+            minimum_stock_level=minimum_stock_level
+        )
+
+        # Emit InventoryCreated event
+        events: List[Any] = [InventoryCreated(
+            product_id=inventory.product_id,
+            initial_quantity=initial_quantity,
+            minimum_stock_level=minimum_stock_level
+        )]
+
+        # Check for low stock condition
+        if inventory.available_quantity < inventory.minimum_stock_level:
+            events.append(LowStockDetected(
+                product_id=inventory.product_id,
+                available_quantity=inventory.available_quantity,
+                minimum_stock_level=inventory.minimum_stock_level
+            ))
+
+        return inventory, events
 
     def reserve(self, quantity: int) -> List[Any]:
         """

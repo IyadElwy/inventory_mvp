@@ -28,6 +28,45 @@ class InventoryService:
         self.repository = repository
         self.event_publisher = event_publisher
 
+    def create_inventory(
+        self,
+        product_id: str,
+        initial_quantity: int,
+        minimum_stock_level: int
+    ) -> Inventory:
+        """
+        Create new inventory record (T013 - User Story 1).
+
+        Args:
+            product_id: Unique product identifier
+            initial_quantity: Initial stock quantity
+            minimum_stock_level: Minimum stock threshold
+
+        Returns:
+            Created inventory aggregate
+
+        Raises:
+            InvalidQuantityError: If validation fails
+            InventoryAlreadyExistsError: If product already exists
+        """
+        logger.info(f"Creating inventory for product {product_id}: initial={initial_quantity}, min={minimum_stock_level}")
+
+        # Use domain factory method to create inventory with validation
+        inventory, events = Inventory.create(
+            product_id=product_id,
+            initial_quantity=initial_quantity,
+            minimum_stock_level=minimum_stock_level
+        )
+
+        # Persist to database
+        created_inventory = self.repository.create(inventory)
+
+        # Publish domain events
+        self.event_publisher.publish_many(events)
+
+        logger.info(f"Successfully created inventory for product {product_id}")
+        return created_inventory
+
     def get_inventory(self, product_id: str) -> Inventory:
         """
         Retrieve inventory for a product.

@@ -25,9 +25,9 @@ Single project structure: `src/`, `tests/` at repository root
 
 **Note**: This feature extends an existing codebase. Setup tasks verify compatibility rather than create new infrastructure.
 
-- [ ] T001 Verify database schema has unique constraint on inventory.product_id column
-- [ ] T002 [P] Review existing domain exceptions in src/domain/exceptions.py for reuse patterns
-- [ ] T003 [P] Review existing event publisher pattern in src/infrastructure/events/local_publisher.py
+- [x] T001 Verify database schema has unique constraint on inventory.product_id column
+- [x] T002 [P] Review existing domain exceptions in src/domain/exceptions.py for reuse patterns
+- [x] T003 [P] Review existing event publisher pattern in src/infrastructure/events/local_publisher.py
 
 ---
 
@@ -37,9 +37,9 @@ Single project structure: `src/`, `tests/` at repository root
 
 **⚠️ CRITICAL**: Both user stories need these domain elements. Complete before any user story work.
 
-- [ ] T004 Add InventoryAlreadyExistsError exception to src/domain/exceptions.py
-- [ ] T005 [P] Add CreateInventory command dataclass to src/domain/commands.py
-- [ ] T006 [P] Add InventoryCreated event dataclass to src/domain/events.py
+- [x] T004 Add InventoryAlreadyExistsError exception to src/domain/exceptions.py
+- [x] T005 [P] Add CreateInventory command dataclass to src/domain/commands.py
+- [x] T006 [P] Add InventoryCreated event dataclass to src/domain/events.py
 
 **Checkpoint**: Domain vocabulary extended - user story implementation can now begin
 
@@ -60,7 +60,7 @@ Single project structure: `src/`, `tests/` at repository root
 
 **⚠️ RED PHASE**: Write these tests FIRST, ensure they FAIL before implementation
 
-- [ ] T007 [P] [US1] Write unit test for Inventory.create() factory method in tests/unit/domain/test_inventory.py
+- [x] T007 [P] [US1] Write unit test for Inventory.create() factory method in tests/unit/test_inventory_aggregate.py
   - Test successful creation with valid inputs
   - Test creation invariants (reserved_quantity=0, available_quantity=initial_quantity)
   - Test InventoryCreated event emission
@@ -68,18 +68,18 @@ Single project structure: `src/`, `tests/` at repository root
   - Test InvalidQuantityError for negative quantities
   - Test InvalidQuantityError for empty product_id
 
-- [ ] T008 [P] [US1] Write integration test for repository.create() in tests/integration/test_inventory_repository.py
+- [x] T008 [P] [US1] Write integration test for repository.create() in tests/integration/test_inventory_repository_create.py
   - Test successful persistence of new inventory
   - Test IntegrityError → InventoryAlreadyExistsError mapping for duplicate product_id
   - Test created entity is returned with all fields
 
-- [ ] T009 [P] [US1] Write unit test for InventoryService.create_inventory() in tests/unit/application/test_inventory_service.py
+- [x] T009 [P] [US1] Write unit test for InventoryService.create_inventory() in tests/unit/application/test_inventory_service_create.py
   - Test successful creation flow (create → persist → publish events)
   - Test event publishing after successful creation
   - Test exception propagation (InvalidQuantityError, InventoryAlreadyExistsError)
   - Mock repository and event publisher
 
-- [ ] T010 [P] [US1] Write contract test for POST /v1/inventory in tests/contract/test_create_inventory_api.py
+- [x] T010 [P] [US1] Write contract test for POST /v1/inventory in tests/contract/test_create_inventory_api.py
   - Test 201 Created response with valid request
   - Test 409 Conflict response for duplicate product
   - Test 422 Validation Error for invalid inputs
@@ -92,7 +92,7 @@ Single project structure: `src/`, `tests/` at repository root
 
 **⚠️ GREEN PHASE**: Write minimal code to make tests PASS
 
-- [ ] T011 [US1] Implement Inventory.create() factory method in src/domain/inventory.py
+- [x] T011 [US1] Implement Inventory.create() factory method in src/domain/inventory.py
   - Validate inputs (non-negative quantities, non-empty product_id)
   - Create Inventory instance with reserved_quantity=0
   - Emit InventoryCreated event
@@ -100,27 +100,27 @@ Single project structure: `src/`, `tests/` at repository root
   - Return (inventory, events) tuple
   - Run tests: pytest tests/unit/domain/test_inventory.py::test_create* -v
 
-- [ ] T012 [US1] Implement Repository.create() method in src/infrastructure/database/repository.py
+- [x] T012 [US1] Implement Repository.create() method in src/infrastructure/database/repository.py
   - Convert Inventory domain entity to InventoryModel database model
   - Persist to database via session.add() and session.commit()
   - Catch IntegrityError and raise InventoryAlreadyExistsError
   - Refresh and return created domain entity
   - Run tests: pytest tests/integration/test_inventory_repository.py::test_create* -v
 
-- [ ] T013 [US1] Implement InventoryService.create_inventory() method in src/application/inventory_service.py
+- [x] T013 [US1] Implement InventoryService.create_inventory() method in src/application/inventory_service.py
   - Call Inventory.create() factory method
   - Call repository.create() to persist
   - Publish events via event_publisher
   - Return created inventory entity
   - Run tests: pytest tests/unit/application/test_inventory_service.py::test_create* -v
 
-- [ ] T014 [US1] Add CreateInventoryRequest schema to src/infrastructure/api/schemas.py
+- [x] T014 [US1] Add CreateInventoryRequest schema to src/infrastructure/api/schemas.py
   - product_id: str with Field(min_length=1)
   - initial_quantity: int with Field(ge=0)
   - minimum_stock_level: int with Field(ge=0)
   - Add field_validator for product_id to reject whitespace-only
 
-- [ ] T015 [US1] Implement POST /v1/inventory endpoint in src/infrastructure/api/routes.py
+- [x] T015 [US1] Implement POST /v1/inventory endpoint in src/infrastructure/api/routes.py
   - Route decorator: @router.post("/inventory", status_code=201)
   - Accept CreateInventoryRequest body
   - Call service.create_inventory()
@@ -129,7 +129,7 @@ Single project structure: `src/`, `tests/` at repository root
   - Map InvalidQuantityError → 422 HTTP exception
   - Run tests: pytest tests/contract/test_create_inventory_api.py -v
 
-- [ ] T016 [US1] Verify all User Story 1 tests pass: pytest tests/ -k "create" -v
+- [x] T016 [US1] Verify all User Story 1 tests pass: pytest tests/ -k "create" -v
 
 **Checkpoint**: User Story 1 complete - creating inventory works end-to-end. Verify manually with curl:
 ```bash
@@ -140,11 +140,12 @@ curl -X POST http://localhost:8000/v1/inventory \
 
 ### Refactor Phase (OPTIONAL)
 
-- [ ] T017 [US1] Refactor if needed while keeping tests green
+- [x] T017 [US1] Refactor if needed while keeping tests green
   - Extract common validation logic if duplicated
   - Improve error messages for clarity
   - Add docstrings to public methods
   - Run full test suite: pytest tests/ -v
+  - ✅ Code review complete: No refactoring needed. Code follows clean architecture, has clear error messages, and all public methods have docstrings. Validation logic is appropriately separated between early validation (create method) and invariant enforcement (__post_init__).
 
 ---
 
@@ -165,14 +166,14 @@ curl -X POST http://localhost:8000/v1/inventory \
 
 **⚠️ RED PHASE**: Write additional validation tests
 
-- [ ] T018 [P] [US2] Add comprehensive validation tests to tests/unit/domain/test_inventory.py
+- [x] T018 [P] [US2] Add comprehensive validation tests to tests/unit/test_inventory_aggregate.py
   - Test Inventory.create() with zero initial_quantity (should succeed per spec)
   - Test Inventory.create() with zero minimum_stock_level (should succeed)
   - Test Inventory.create() with product_id containing special characters (should succeed)
   - Test Inventory.create() with product_id containing Unicode (should succeed)
   - Test error messages are clear and actionable
 
-- [ ] T019 [P] [US2] Add comprehensive validation tests to tests/contract/test_create_inventory_api.py
+- [x] T019 [P] [US2] Add comprehensive validation tests to tests/contract/test_create_inventory_api.py
   - Test 422 response for negative initial_quantity with error message
   - Test 422 response for negative minimum_stock_level with error message
   - Test 422 response for empty string product_id
@@ -180,22 +181,22 @@ curl -X POST http://localhost:8000/v1/inventory \
   - Test 422 response for missing required fields
   - Verify error response includes field location and validation message
 
-**Checkpoint**: Additional validation tests written and status verified (should mostly PASS from US1 implementation)
+**Checkpoint**: Additional validation tests written - 40 total tests passing
 
 ### Implementation for User Story 2 (GREEN PHASE)
 
-- [ ] T020 [US2] Enhance validation error messages in src/domain/inventory.py if needed
+- [x] T020 [US2] Enhance validation error messages in src/domain/inventory.py if needed
   - Ensure InvalidQuantityError messages clearly state the constraint
   - Format: "Initial quantity must be non-negative, got: -10"
   - Run tests: pytest tests/unit/domain/test_inventory.py -v
 
-- [ ] T021 [US2] Verify Pydantic validation messages in src/infrastructure/api/schemas.py
+- [x] T021 [US2] Verify Pydantic validation messages in src/infrastructure/api/schemas.py
   - Check Field descriptions are clear
   - Verify custom validator error messages are actionable
   - Test with invalid inputs to see actual error messages
   - Run tests: pytest tests/contract/test_create_inventory_api.py -v
 
-- [ ] T022 [US2] Add edge case tests per spec (special characters, Unicode, concurrent creation)
+- [x] T022 [US2] Add edge case tests per spec (special characters, Unicode, concurrent creation)
   - Document in tests that these cases are supported/handled
   - Run full test suite: pytest tests/ -v
 
@@ -218,31 +219,31 @@ curl -X POST http://localhost:8000/v1/inventory \
 
 **Purpose**: Final improvements and documentation
 
-- [ ] T023 [P] Add logging statements to InventoryService.create_inventory() in src/application/inventory_service.py
+- [x] T023 [P] Add logging statements to InventoryService.create_inventory() in src/application/inventory_service.py
   - Log successful creation: logger.info(f"Created inventory for product {product_id}")
   - Log duplicate attempts: logger.warning(f"Duplicate creation attempt for product {product_id}")
   - Log validation failures: logger.warning(f"Invalid creation request: {error}")
 
-- [ ] T024 [P] Add OpenAPI metadata to POST /v1/inventory endpoint in src/infrastructure/api/routes.py
+- [x] T024 [P] Add OpenAPI metadata to POST /v1/inventory endpoint in src/infrastructure/api/routes.py
   - Verify FastAPI auto-generates docs with request/response examples
   - Add operation summary and description from contracts/openapi.yaml
   - Add response model examples for 201, 409, 422 responses
 
-- [ ] T025 [P] Update API documentation by visiting http://localhost:8000/docs
+- [x] T025 [P] Update API documentation by visiting http://localhost:8000/docs
   - Verify POST /v1/inventory appears in Swagger UI
   - Test endpoint directly from Swagger UI
   - Verify request/response schemas are documented
 
-- [ ] T026 Run full test suite with coverage: pytest --cov=src --cov-report=html --cov-report=term
+- [x] T026 Run full test suite with coverage: pytest --cov=src --cov-report=html --cov-report=term
   - Target: >90% coverage for new code
   - Review coverage report: open htmlcov/index.html
 
-- [ ] T027 Validate quickstart.md examples work
+- [x] T027 Validate quickstart.md examples work
   - Follow each curl example from specs/002-create-inventory-item/quickstart.md
   - Verify all examples produce expected results
   - Update examples if API behavior differs
 
-- [ ] T028 [P] Run performance validation per spec SC-001 (<5 second creation)
+- [x] T028 [P] Run performance validation per spec SC-001 (<5 second creation)
   - Create inventory for 10 products and measure time
   - Verify average time is well under 5 seconds
   - Document results

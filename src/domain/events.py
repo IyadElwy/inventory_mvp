@@ -45,3 +45,12 @@ class LowStockDetected:
     available_quantity: int
     minimum_stock_level: int
     timestamp: datetime = field(default_factory=datetime.utcnow)
+
+
+@dataclass(frozen=True)
+class InventoryCreated:
+    """Event: New inventory record successfully created"""
+    product_id: str
+    initial_quantity: int
+    minimum_stock_level: int
+    timestamp: datetime = field(default_factory=datetime.utcnow)

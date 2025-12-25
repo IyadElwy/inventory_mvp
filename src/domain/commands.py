@@ -33,3 +33,12 @@ class AdjustInventory:
     reason: str  # e.g., "physical_count", "damaged_goods"
     adjusted_by: str  # User or system ID
     timestamp: datetime = field(default_factory=datetime.utcnow)
+
+
+@dataclass(frozen=True)
+class CreateInventory:
+    """Command to create new inventory record"""
+    product_id: str
+    initial_quantity: int
+    minimum_stock_level: int
+    timestamp: datetime = field(default_factory=datetime.utcnow)
