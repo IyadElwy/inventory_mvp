@@ -4,6 +4,7 @@ A production-ready microservice for managing inventory reservations, releases, a
 
 ## Features
 
+- ✅ **Inventory Creation**: Initialize new product inventory via REST API
 - ✅ **Inventory Operations**: Check, reserve, release, and adjust inventory levels
 - ✅ **Low Stock Monitoring**: Query products below minimum thresholds
 - ✅ **Event Sourcing**: Full audit trail of all inventory changes
@@ -147,30 +148,81 @@ curl http://localhost:8000/health
 
 ---
 
-### 2. Create Inventory (Initial Setup)
+### 2. Create Inventory
 
-First, create inventory records directly via database or import script. For testing, use Python:
+Create a new inventory record for a product:
 
 ```bash
-python3 << 'EOF'
-from src.infrastructure.database.session import get_db
-from src.domain.inventory import Inventory
-from src.infrastructure.database.repository import InventoryRepository
+curl -X POST http://localhost:8000/v1/inventory \
+  -H "Content-Type: application/json" \
+  -d '{
+    "product_id": "PROD-001",
+    "initial_quantity": 100,
+    "minimum_stock_level": 10
+  }'
+```
 
-db = next(get_db())
-repo = InventoryRepository(db)
+**Response (201 Created):**
+```json
+{
+  "success": true,
+  "message": "Successfully created inventory for product PROD-001",
+  "inventory": {
+    "product_id": "PROD-001",
+    "total_quantity": 100,
+    "reserved_quantity": 0,
+    "available_quantity": 100,
+    "minimum_stock_level": 10
+  }
+}
+```
 
-# Create product inventory
-inventory = Inventory(
-    product_id="PROD-001",
-    total_quantity=100,
-    reserved_quantity=0,
-    minimum_stock_level=10
-)
-repo.save(inventory)
-db.commit()
-print("✓ Created inventory for PROD-001")
-EOF
+**Error Response (409 Conflict - Duplicate Product):**
+```bash
+# Attempting to create the same product again
+curl -X POST http://localhost:8000/v1/inventory \
+  -H "Content-Type: application/json" \
+  -d '{
+    "product_id": "PROD-001",
+    "initial_quantity": 50,
+    "minimum_stock_level": 5
+  }'
+```
+
+Response:
+```json
+{
+  "detail": "Inventory already exists for product PROD-001"
+}
+```
+
+**Error Response (422 Validation Error):**
+```bash
+curl -X POST http://localhost:8000/v1/inventory \
+  -H "Content-Type: application/json" \
+  -d '{
+    "product_id": "",
+    "initial_quantity": -10,
+    "minimum_stock_level": 5
+  }'
+```
+
+Response:
+```json
+{
+  "detail": [
+    {
+      "loc": ["body", "product_id"],
+      "msg": "Product ID cannot be whitespace only",
+      "type": "value_error"
+    },
+    {
+      "loc": ["body", "initial_quantity"],
+      "msg": "Input should be greater than or equal to 0",
+      "type": "greater_than_equal"
+    }
+  ]
+}
 ```
 
 ---
@@ -346,26 +398,16 @@ curl http://localhost:8000/v1/inventory/low-stock
 ## Complete Workflow Example
 
 ```bash
-# 1. Create initial inventory
-python3 << 'EOF'
-from src.infrastructure.database.session import get_db
-from src.domain.inventory import Inventory
-from src.infrastructure.database.repository import InventoryRepository
-
-db = next(get_db())
-repo = InventoryRepository(db)
-
-for i in range(1, 4):
-    inventory = Inventory(
-        product_id=f"PROD-{i:03d}",
-        total_quantity=100,
-        reserved_quantity=0,
-        minimum_stock_level=20
-    )
-    repo.save(inventory)
-db.commit()
-print("✓ Created 3 products")
-EOF
+# 1. Create initial inventory for 3 products
+for i in 1 2 3; do
+  curl -X POST http://localhost:8000/v1/inventory \
+    -H "Content-Type: application/json" \
+    -d "{
+      \"product_id\": \"PROD-00${i}\",
+      \"initial_quantity\": 100,
+      \"minimum_stock_level\": 20
+    }"
+done
 
 # 2. Check inventory
 curl http://localhost:8000/v1/inventory/PROD-001
@@ -535,8 +577,8 @@ export PYTHONPATH="${PYTHONPATH}:$(pwd)"
 ### Domain-Driven Design (DDD)
 
 - **Aggregate**: `Inventory` (product_id, total_quantity, reserved_quantity, minimum_stock_level)
-- **Commands**: ReserveInventory, ReleaseInventory, AdjustInventory
-- **Events**: InventoryReserved, InventoryReleased, InventoryAdjusted, LowStockDetected
+- **Commands**: CreateInventory, ReserveInventory, ReleaseInventory, AdjustInventory
+- **Events**: InventoryCreated, InventoryReserved, InventoryReleased, InventoryAdjusted, LowStockDetected
 - **Policies**: StockLevelMonitor (emits alerts when available < minimum)
 
 ### CQRS + Event Sourcing
@@ -566,21 +608,22 @@ Uses pessimistic locking (`SELECT FOR UPDATE`) to prevent race conditions during
 
 ## API Endpoints Summary
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/health` | Health check |
-| GET | `/v1/inventory/{product_id}` | Get inventory status |
-| POST | `/v1/inventory/{product_id}/reserve` | Reserve inventory |
-| POST | `/v1/inventory/{product_id}/release` | Release reserved inventory |
-| PUT | `/v1/inventory/{product_id}` | Adjust inventory (stock count) |
-| GET | `/v1/inventory/low-stock` | Query low stock items |
+| Method | Endpoint | Description | Status Codes |
+|--------|----------|-------------|--------------|
+| GET | `/health` | Health check | 200 |
+| POST | `/v1/inventory` | Create new inventory record | 201, 409, 422 |
+| GET | `/v1/inventory/{product_id}` | Get inventory status | 200, 404 |
+| POST | `/v1/inventory/{product_id}/reserve` | Reserve inventory | 200, 404, 409, 422 |
+| POST | `/v1/inventory/{product_id}/release` | Release reserved inventory | 200, 404, 422 |
+| PUT | `/v1/inventory/{product_id}` | Adjust inventory (stock count) | 200, 404, 422 |
+| GET | `/v1/inventory/low-stock` | Query low stock items | 200 |
 
 ## Test Coverage
 
-- **Total**: 64 tests, 83% coverage
-- **Unit Tests**: 32/32 passing
-- **Integration Tests**: 14/14 passing
-- **Contract Tests**: 18/18 passing
+- **Total**: 102 tests, 83% coverage
+- **Unit Tests**: 54/54 passing (domain + application layers)
+- **Integration Tests**: 18/18 passing (repository + database)
+- **Contract Tests**: 30/30 passing (API endpoints)
 
 ## Contributing
 
@@ -600,6 +643,14 @@ MIT License - see LICENSE file for details
 ## Support
 
 For questions or issues, refer to:
-- Feature Specification: `specs/001-inventory-rest-api/spec.md`
+
+**Feature: Inventory REST API (001)**
+- Specification: `specs/001-inventory-rest-api/spec.md`
 - Implementation Plan: `specs/001-inventory-rest-api/plan.md`
 - Quickstart Guide: `specs/001-inventory-rest-api/quickstart.md`
+
+**Feature: Create Inventory Item (002)**
+- Specification: `specs/002-create-inventory-item/spec.md`
+- Implementation Plan: `specs/002-create-inventory-item/plan.md`
+- Quickstart Guide: `specs/002-create-inventory-item/quickstart.md`
+- Implementation Complete: `specs/002-create-inventory-item/IMPLEMENTATION_COMPLETE.md`
