@@ -104,7 +104,7 @@ docker build -t inventory-api:latest .
 
 ```bash
 # Run with persistent database
-docker run -d \
+docker run \
   --name inventory-api \
   -p 8000:8000 \
   -v $(pwd)/data:/app/data \
@@ -441,17 +441,17 @@ curl http://localhost:8000/v1/inventory/PROD-001
 
 ## Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATABASE_URL` | `sqlite:///./inventory.db` | Database connection string |
-| `DATABASE_ECHO` | `false` | Enable SQL query logging |
-| `LOG_LEVEL` | `INFO` | Logging level (DEBUG, INFO, WARNING, ERROR) |
-| `CORS_ORIGINS` | `*` | Comma-separated allowed origins |
-| `API_PREFIX` | `/v1` | API route prefix |
-| `APP_NAME` | `Inventory Management API` | Application name |
-| `DEBUG` | `false` | Enable debug mode |
-| `HOST` | `0.0.0.0` | Server host binding |
-| `PORT` | `8000` | Server port |
+| Variable        | Default                    | Description                                 |
+| --------------- | -------------------------- | ------------------------------------------- |
+| `DATABASE_URL`  | `sqlite:///./inventory.db` | Database connection string                  |
+| `DATABASE_ECHO` | `false`                    | Enable SQL query logging                    |
+| `LOG_LEVEL`     | `INFO`                     | Logging level (DEBUG, INFO, WARNING, ERROR) |
+| `CORS_ORIGINS`  | `*`                        | Comma-separated allowed origins             |
+| `API_PREFIX`    | `/v1`                      | API route prefix                            |
+| `APP_NAME`      | `Inventory Management API` | Application name                            |
+| `DEBUG`         | `false`                    | Enable debug mode                           |
+| `HOST`          | `0.0.0.0`                  | Server host binding                         |
+| `PORT`          | `8000`                     | Server port                                 |
 
 Create a `.env` file in the project root:
 
@@ -608,15 +608,15 @@ Uses pessimistic locking (`SELECT FOR UPDATE`) to prevent race conditions during
 
 ## API Endpoints Summary
 
-| Method | Endpoint | Description | Status Codes |
-|--------|----------|-------------|--------------|
-| GET | `/health` | Health check | 200 |
-| POST | `/v1/inventory` | Create new inventory record | 201, 409, 422 |
-| GET | `/v1/inventory/{product_id}` | Get inventory status | 200, 404 |
-| POST | `/v1/inventory/{product_id}/reserve` | Reserve inventory | 200, 404, 409, 422 |
-| POST | `/v1/inventory/{product_id}/release` | Release reserved inventory | 200, 404, 422 |
-| PUT | `/v1/inventory/{product_id}` | Adjust inventory (stock count) | 200, 404, 422 |
-| GET | `/v1/inventory/low-stock` | Query low stock items | 200 |
+| Method | Endpoint                             | Description                    | Status Codes       |
+| ------ | ------------------------------------ | ------------------------------ | ------------------ |
+| GET    | `/health`                            | Health check                   | 200                |
+| POST   | `/v1/inventory`                      | Create new inventory record    | 201, 409, 422      |
+| GET    | `/v1/inventory/{product_id}`         | Get inventory status           | 200, 404           |
+| POST   | `/v1/inventory/{product_id}/reserve` | Reserve inventory              | 200, 404, 409, 422 |
+| POST   | `/v1/inventory/{product_id}/release` | Release reserved inventory     | 200, 404, 422      |
+| PUT    | `/v1/inventory/{product_id}`         | Adjust inventory (stock count) | 200, 404, 422      |
+| GET    | `/v1/inventory/low-stock`            | Query low stock items          | 200                |
 
 ## Test Coverage
 
