@@ -1,0 +1,448 @@
+"""
+FastAPI route handlers for inventory endpoints.
+Handles HTTP request/response and error conversion.
+"""
+from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime
+from src.application.inventory_service import InventoryService
+from src.infrastructure.api.schemas import (
+    InventoryResponse, ErrorResponse, ReserveInventoryRequest, ReleaseInventoryRequest,
+    AdjustInventoryRequest, OperationResult, CreateInventoryRequest
+)
+from src.infrastructure.api.dependencies import get_repo_dependency, get_event_publisher
+from src.infrastructure.events.local_publisher import LocalEventPublisher
+from src.domain.exceptions import InventoryNotFoundError, InsufficientStockError, InvalidQuantityError, InventoryAlreadyExistsError
+import logging
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/v1", tags=["Inventory"])
+
+
+def get_inventory_service(
+    repo=Depends(get_repo_dependency),
+    event_publisher=Depends(get_event_publisher)
+) -> InventoryService:
+    """Dependency injection for InventoryService with event persistence"""
+    return InventoryService(repo, event_publisher)
+
+
+@router.get(
+    "/inventory/low-stock",
+    response_model=list[InventoryResponse],
+    responses={
+        200: {"description": "List of low stock products (may be empty)"}
+    }
+)
+def get_low_stock_items(
+    service: InventoryService = Depends(get_inventory_service)
+):
+    """
+    Get all products with stock below minimum threshold.
+
+    Returns:
+        List of InventoryResponse for products with available quantity < minimum stock level
+
+    Notes:
+        - Returns empty list if no products are low on stock
+        - Low stock monitoring is pull-based (this endpoint must be polled)
+    """
+    try:
+        logger.info("GET /inventory/low-stock")
+
+        low_stock_items = service.get_low_stock_items()
+
+        # Convert to response format
+        response = [
+            InventoryResponse(
+                product_id=inventory.product_id,
+                total_quantity=inventory.total_quantity,
+                reserved_quantity=inventory.reserved_quantity,
+                available_quantity=inventory.available_quantity,
+                minimum_stock_level=inventory.minimum_stock_level
+            )
+            for inventory in low_stock_items
+        ]
+
+        logger.info(f"Returning {len(response)} low stock items")
+
+        return response
+
+    except Exception as e:
+        logger.error(f"Unexpected error querying low stock items: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+@router.post(
+    "/inventory",
+    response_model=OperationResult,
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        409: {"model": ErrorResponse, "description": "Product already exists"},
+        422: {"description": "Validation error"}
+    }
+)
+def create_inventory(
+    request: CreateInventoryRequest,
+    service: InventoryService = Depends(get_inventory_service)
+):
+    """
+    Create new inventory record (T015 - User Story 1).
+
+    Args:
+        request: Creation request with product_id, initial_quantity, minimum_stock_level
+
+    Returns:
+        OperationResult with created inventory details
+
+    Raises:
+        HTTPException 409: Product already exists
+        HTTPException 422: Invalid request data
+    """
+    try:
+        logger.info(f"POST /inventory - product: {request.product_id}, quantity: {request.initial_quantity}")
+
+        inventory = service.create_inventory(
+            product_id=request.product_id,
+            initial_quantity=request.initial_quantity,
+            minimum_stock_level=request.minimum_stock_level
+        )
+
+        inventory_response = InventoryResponse(
+            product_id=inventory.product_id,
+            total_quantity=inventory.total_quantity,
+            reserved_quantity=inventory.reserved_quantity,
+            available_quantity=inventory.available_quantity,
+            minimum_stock_level=inventory.minimum_stock_level
+        )
+
+        return OperationResult(
+            success=True,
+            message=f"Successfully created inventory for product {request.product_id}",
+            inventory=inventory_response
+        )
+
+    except InventoryAlreadyExistsError as e:
+        logger.warning(f"Duplicate inventory creation: {request.product_id}")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e)
+        )
+
+    except InvalidQuantityError as e:
+        logger.warning(f"Invalid creation request: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e)
+        )
+
+    except Exception as e:
+        logger.error(f"Unexpected error creating inventory for {request.product_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+@router.get(
+    "/inventory/{product_id}",
+    response_model=InventoryResponse,
+    responses={
+        404: {"model": ErrorResponse, "description": "Product not found"},
+    }
+)
+def get_inventory(
+    product_id: str,
+    service: InventoryService = Depends(get_inventory_service)
+):
+    """
+    Get current inventory status for a product.
+
+    Args:
+        product_id: Product identifier
+
+    Returns:
+        InventoryResponse with current inventory status
+
+    Raises:
+        HTTPException 404: Product not found in inventory
+    """
+    try:
+        logger.info(f"GET /inventory/{product_id}")
+
+        inventory = service.get_inventory(product_id)
+
+        return InventoryResponse(
+            product_id=inventory.product_id,
+            total_quantity=inventory.total_quantity,
+            reserved_quantity=inventory.reserved_quantity,
+            available_quantity=inventory.available_quantity,
+            minimum_stock_level=inventory.minimum_stock_level
+        )
+
+    except InventoryNotFoundError as e:
+        logger.warning(f"Product not found: {product_id}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+
+    except Exception as e:
+        logger.error(f"Unexpected error getting inventory for {product_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+@router.post(
+    "/inventory/{product_id}/reserve",
+    response_model=OperationResult,
+    responses={
+        404: {"model": ErrorResponse, "description": "Product not found"},
+        409: {"model": ErrorResponse, "description": "Insufficient stock"},
+        422: {"description": "Validation error"}
+    }
+)
+def reserve_inventory(
+    product_id: str,
+    request: ReserveInventoryRequest,
+    service: InventoryService = Depends(get_inventory_service)
+):
+    """
+    Reserve inventory for an order.
+
+    Args:
+        product_id: Product identifier
+        request: Reservation request with quantity and order_id
+
+    Returns:
+        OperationResult with updated inventory status
+
+    Raises:
+        HTTPException 404: Product not found
+        HTTPException 409: Insufficient stock
+        HTTPException 422: Invalid request data
+    """
+    try:
+        logger.info(f"POST /inventory/{product_id}/reserve - quantity: {request.quantity}, order: {request.order_id}")
+
+        inventory = service.reserve_inventory(
+            product_id=product_id,
+            quantity=request.quantity,
+            order_id=request.order_id
+        )
+
+        inventory_response = InventoryResponse(
+            product_id=inventory.product_id,
+            total_quantity=inventory.total_quantity,
+            reserved_quantity=inventory.reserved_quantity,
+            available_quantity=inventory.available_quantity,
+            minimum_stock_level=inventory.minimum_stock_level
+        )
+
+        return OperationResult(
+            success=True,
+            message=f"Successfully reserved {request.quantity} units",
+            inventory=inventory_response
+        )
+
+    except InventoryNotFoundError as e:
+        logger.warning(f"Product not found: {product_id}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+
+    except InsufficientStockError as e:
+        logger.warning(f"Insufficient stock for {product_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e)
+        )
+
+    except InvalidQuantityError as e:
+        logger.warning(f"Invalid quantity for {product_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e)
+        )
+
+    except Exception as e:
+        logger.error(f"Unexpected error reserving inventory for {product_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+@router.post(
+    "/inventory/{product_id}/release",
+    response_model=OperationResult,
+    responses={
+        404: {"model": ErrorResponse, "description": "Product not found"},
+        422: {"description": "Validation error"}
+    }
+)
+def release_inventory(
+    product_id: str,
+    request: ReleaseInventoryRequest,
+    service: InventoryService = Depends(get_inventory_service)
+):
+    """
+    Release reserved inventory back to available pool.
+
+    Args:
+        product_id: Product identifier
+        request: Release request with quantity, order_id, and reason
+
+    Returns:
+        OperationResult with updated inventory status
+
+    Raises:
+        HTTPException 404: Product not found
+        HTTPException 422: Invalid request data or quantity exceeds reserved
+    """
+    try:
+        logger.info(f"POST /inventory/{product_id}/release - quantity: {request.quantity}, order: {request.order_id}")
+
+        inventory = service.release_inventory(
+            product_id=product_id,
+            quantity=request.quantity,
+            order_id=request.order_id,
+            reason=request.reason
+        )
+
+        inventory_response = InventoryResponse(
+            product_id=inventory.product_id,
+            total_quantity=inventory.total_quantity,
+            reserved_quantity=inventory.reserved_quantity,
+            available_quantity=inventory.available_quantity,
+            minimum_stock_level=inventory.minimum_stock_level
+        )
+
+        return OperationResult(
+            success=True,
+            message=f"Successfully released {request.quantity} units",
+            inventory=inventory_response
+        )
+
+    except InventoryNotFoundError as e:
+        logger.warning(f"Product not found: {product_id}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+
+    except InvalidQuantityError as e:
+        logger.warning(f"Invalid quantity for {product_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e)
+        )
+
+    except Exception as e:
+        logger.error(f"Unexpected error releasing inventory for {product_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+@router.put(
+    "/inventory/{product_id}",
+    response_model=OperationResult,
+    responses={
+        404: {"model": ErrorResponse, "description": "Product not found"},
+        422: {"description": "Validation error"}
+    }
+)
+def adjust_inventory(
+    product_id: str,
+    request: AdjustInventoryRequest,
+    service: InventoryService = Depends(get_inventory_service)
+):
+    """
+    Adjust total inventory quantity for physical stock counts.
+
+    Args:
+        product_id: Product identifier
+        request: Adjustment request with new quantity, reason, and adjusted_by
+
+    Returns:
+        OperationResult with updated inventory status
+
+    Raises:
+        HTTPException 404: Product not found
+        HTTPException 422: Invalid request data
+    """
+    try:
+        logger.info(f"PUT /inventory/{product_id} - new quantity: {request.new_quantity}")
+
+        inventory = service.adjust_inventory(
+            product_id=product_id,
+            new_quantity=request.new_quantity,
+            reason=request.reason,
+            adjusted_by=request.adjusted_by
+        )
+
+        inventory_response = InventoryResponse(
+            product_id=inventory.product_id,
+            total_quantity=inventory.total_quantity,
+            reserved_quantity=inventory.reserved_quantity,
+            available_quantity=inventory.available_quantity,
+            minimum_stock_level=inventory.minimum_stock_level
+        )
+
+        return OperationResult(
+            success=True,
+            message=f"Successfully adjusted inventory to {request.new_quantity} units",
+            inventory=inventory_response
+        )
+
+    except InventoryNotFoundError as e:
+        logger.warning(f"Product not found: {product_id}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+
+    except InvalidQuantityError as e:
+        logger.warning(f"Invalid adjustment for {product_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e)
+        )
+
+    except Exception as e:
+        logger.error(f"Unexpected error adjusting inventory for {product_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+@router.get(
+    "/health",
+    responses={
+        200: {"description": "Service is healthy"}
+    },
+    tags=["Health"]
+)
+def health_check():
+    """
+    Health check endpoint for monitoring and load balancers.
+
+    Returns:
+        dict: Health status with service name and status
+    """
+    from src.infrastructure.config import settings
+
+    return {
+        "status": "healthy",
+        "service": settings.APP_NAME,
+        "version": settings.APP_VERSION
+    }
